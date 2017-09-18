@@ -5,3 +5,5 @@ authors = ["Yusuke Sasaki <y_sasaki@nuem.nagoya-u.ac.jp>"]
 
 [dependencies]
 simd = "*"
+itertools = "*"
+num = "*"

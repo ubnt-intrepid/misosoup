@@ -1,5 +1,8 @@
 pub mod backend;
 
+use bit;
+use num::Integer;
+
 
 #[allow(missing_docs)]
 pub trait Backend {
@@ -33,6 +36,57 @@ pub fn build_structural_character_bitmaps<B: Backend + Default>(s: &[u8]) -> Vec
     }
 
     result
+}
+
+
+pub fn remove_unstructural_quotes(bitmaps: &mut [Bitmap]) {
+    debug_assert!(bitmaps.len() > 0);
+
+    let mut uu = 0u64;
+    for i in 0..bitmaps.len() {
+        // extract the backslash bitmap, whose succeeding element is a quote.
+        let q1 = bitmaps[i].quote;
+        let q2 = if i + 1 == bitmaps.len() {
+            0
+        } else {
+            bitmaps[i + 1].quote
+        };
+        let mut bsq = (q1 >> 1 | q2 << 63) & bitmaps[i].backslash;
+
+        // extract the bits for escaping a quote from `bsq`.
+        let mut u = 0u64;
+        while bsq != 0 {
+            // The target backslash bit.
+            let target = bit::E(bsq);
+            let pos = 64 - target.leading_zeros();
+            if consecutive_ones(&bitmaps[0..i + 1], pos).is_odd() {
+                u |= target;
+            }
+            bsq ^= target; // clear the target bit.
+        }
+
+        // Remove unstructural quotes from quote bitmap.
+        bitmaps[i].quote &= !(uu >> 63 | u << 1);
+        uu = u;
+    }
+}
+
+/// Compute the length of the consecutive ones in the backslash bitmap starting at `pos`
+#[inline]
+fn consecutive_ones(b: &[Bitmap], pos: u32) -> u32 {
+    let mut ones = bit::leading_ones(b[b.len() - 1].backslash, pos);
+    if ones < pos {
+        return ones;
+    }
+
+    for b in b[0..b.len() - 1].iter().rev() {
+        let l = bit::leading_ones(b.backslash, 64);
+        if l < 64 {
+            return ones + l;
+        }
+        ones += 64;
+    }
+    ones
 }
 
 
