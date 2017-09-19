@@ -7,3 +7,7 @@ authors = ["Yusuke Sasaki <y_sasaki@nuem.nagoya-u.ac.jp>"]
 simd = "*"
 itertools = "*"
 num = "*"
+error-chain = "*"
+
+[dev-dependencies]
+maplit = "*"
