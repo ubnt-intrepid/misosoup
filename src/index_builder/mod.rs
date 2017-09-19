@@ -1,3 +1,6 @@
+//! Definition of index builder and structural indices
+
+#[allow(missing_docs)]
 pub mod backend;
 
 use bit;
@@ -21,36 +24,49 @@ pub struct Bitmap {
     right_brace: u64,
 }
 
-pub fn build_structural_indices<B: Backend>(
-    record: &[u8],
-    level: usize,
-    backend: &B,
-) -> (Vec<Bitmap>, Vec<Vec<u64>>) {
-    // Step1: build character bitmap of structural characters ('\', '"', ':', '{', '}')
-    let mut bitmaps = build_structural_character_bitmaps(record, backend);
-
-    // Step2: remove unstrucural quotes
-    let b_quote = build_unstructural_quote_bitmap(&bitmaps);
-    for (b, q) in izip!(&mut bitmaps, b_quote) {
-        b.quote ^= q;
-    }
-
-    // Step3: remove unstructural colons, left/right braces from bitmap
-    let b_string = build_string_mask_bitmap(&bitmaps);
-    for (b, s) in izip!(&mut bitmaps, b_string) {
-        b.colon ^= s;
-        b.left_brace ^= s;
-        b.right_brace ^= s;
-    }
-
-    // Step4: build leveled bitmap of colons, from (cleaned) character bitmap
-    let b_level = build_leveled_colon_bitmap(&bitmaps, level);
-
-    (bitmaps, b_level)
+#[allow(missing_docs)]
+#[derive(Debug)]
+pub struct StructuralIndex {
+    pub bitmaps: Vec<Bitmap>,
+    pub b_level: Vec<Vec<u64>>,
 }
 
 #[allow(missing_docs)]
-pub fn build_structural_character_bitmaps<B: Backend>(s: &[u8], backend: &B) -> Vec<Bitmap> {
+#[derive(Debug, Default)]
+pub struct IndexBuilder<B: Backend> {
+    backend: B,
+}
+
+impl<B: Backend> IndexBuilder<B> {
+    /// Build a structural index from a slice of bytes.
+    pub fn build(&self, record: &[u8], level: usize) -> StructuralIndex {
+        // Step1: build character bitmap of structural characters ('\', '"', ':', '{', '}')
+        let mut bitmaps = build_structural_character_bitmaps(record, &self.backend);
+
+        // Step2: remove unstrucural quotes
+        let b_quote = build_unstructural_quote_bitmap(&bitmaps);
+        for (b, q) in izip!(&mut bitmaps, b_quote) {
+            b.quote ^= q;
+        }
+
+        // Step3: remove unstructural colons, left/right braces from bitmap
+        let b_string = build_string_mask_bitmap(&bitmaps);
+        for (b, s) in izip!(&mut bitmaps, b_string) {
+            b.colon ^= s;
+            b.left_brace ^= s;
+            b.right_brace ^= s;
+        }
+
+        // Step4: build leveled bitmap of colons, from (cleaned) character bitmap
+        let b_level = build_leveled_colon_bitmap(&bitmaps, level);
+
+        StructuralIndex { bitmaps, b_level }
+    }
+}
+
+
+
+fn build_structural_character_bitmaps<B: Backend>(s: &[u8], backend: &B) -> Vec<Bitmap> {
     let mut result = Vec::with_capacity((s.len() + 63) / 64);
 
     for i in 0..(s.len() / 64) {
@@ -64,8 +80,7 @@ pub fn build_structural_character_bitmaps<B: Backend>(s: &[u8], backend: &B) -> 
     result
 }
 
-
-pub fn build_unstructural_quote_bitmap(bitmaps: &[Bitmap]) -> Vec<u64> {
+fn build_unstructural_quote_bitmap(bitmaps: &[Bitmap]) -> Vec<u64> {
     debug_assert!(bitmaps.len() > 0);
 
     let mut b_quote = Vec::with_capacity(bitmaps.len());
@@ -120,8 +135,7 @@ fn consecutive_ones(b: &[Bitmap], pos: u32) -> u32 {
     ones
 }
 
-
-pub fn build_string_mask_bitmap(bitmaps: &[Bitmap]) -> Vec<u64> {
+fn build_string_mask_bitmap(bitmaps: &[Bitmap]) -> Vec<u64> {
     let mut b_string = Vec::with_capacity(bitmaps.len());
 
     // The number of quotes in structural quote bitmap
@@ -150,8 +164,7 @@ pub fn build_string_mask_bitmap(bitmaps: &[Bitmap]) -> Vec<u64> {
     b_string
 }
 
-
-pub fn build_leveled_colon_bitmap(bitmaps: &[Bitmap], level: usize) -> Vec<Vec<u64>> {
+fn build_leveled_colon_bitmap(bitmaps: &[Bitmap], level: usize) -> Vec<Vec<u64>> {
     let mut b_level = vec![Vec::with_capacity(bitmaps.len()); level];
     for i in 0..level {
         b_level[i].extend(bitmaps.iter().map(|b| b.colon));
