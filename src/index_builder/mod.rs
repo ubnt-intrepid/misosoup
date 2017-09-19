@@ -32,6 +32,9 @@ pub fn build_structural_indices<B: Backend + Default>(s: &[u8]) {
         b.left_brace ^= s;
         b.right_brace ^= s;
     }
+
+    let level = 10;
+    let _b_level = build_leveled_colon_bitmap(&bitmaps, level);
 }
 
 #[allow(missing_docs)]
@@ -130,6 +133,58 @@ pub fn build_string_mask_bitmap(bitmaps: &[Bitmap]) -> Vec<u64> {
     debug_assert!(n.is_even());
 
     b_string
+}
+
+
+pub fn build_leveled_colon_bitmap(bitmaps: &[Bitmap], level: usize) -> Vec<Vec<u64>> {
+    let mut b_level = vec![Vec::with_capacity(bitmaps.len()); level];
+    for i in 0..level {
+        b_level[i].extend(bitmaps.iter().map(|b| b.colon));
+    }
+
+    let mut s = Vec::new();
+    for (i, b) in bitmaps.iter().enumerate() {
+        let mut m_left = b.left_brace;
+        let mut m_right = b.right_brace;
+
+        loop {
+            let m_rightbit = bit::E(m_right);
+            let mut m_leftbit = bit::E(m_left);
+            while m_leftbit != 0 && (m_rightbit == 0 || m_leftbit < m_rightbit) {
+                s.push((i, m_leftbit));
+                m_left = bit::R(m_left);
+                m_leftbit = bit::E(m_left);
+            }
+
+            if m_rightbit != 0 {
+                let (j, mlb) = s.pop().unwrap();
+                m_leftbit = mlb;
+
+                if s.len() > 0 && s.len() <= level {
+                    let b = &mut b_level[s.len() - 1];
+                    if i == j {
+                        b[i] &= !(m_rightbit.wrapping_sub(m_leftbit));
+                    } else {
+                        b[j] &= m_leftbit.wrapping_sub(1);
+                        b[i] &= !(m_rightbit.wrapping_sub(1));
+                        for k in j + 1..i {
+                            // MEMO: the index is different to the paper:
+                            // b_level[s.len()][k]
+                            b[k] = 0;
+                        }
+                    }
+                }
+            }
+
+            m_right = bit::R(m_right);
+
+            if m_rightbit == 0 {
+                break;
+            }
+        }
+    }
+
+    b_level
 }
 
 
