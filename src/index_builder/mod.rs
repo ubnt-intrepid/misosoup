@@ -21,26 +21,36 @@ pub struct Bitmap {
     right_brace: u64,
 }
 
-pub fn build_structural_indices<B: Backend + Default>(s: &[u8]) {
-    let mut bitmaps = build_structural_character_bitmaps::<B>(s);
-    remove_unstructural_quotes(&mut bitmaps);
+pub fn build_structural_indices<B: Backend>(
+    record: &[u8],
+    level: usize,
+    backend: &B,
+) -> (Vec<Bitmap>, Vec<Vec<u64>>) {
+    // Step1: build character bitmap of structural characters ('\', '"', ':', '{', '}')
+    let mut bitmaps = build_structural_character_bitmaps(record, backend);
 
-    // remove unstructural colons, left/right braces from bitmap
+    // Step2: remove unstrucural quotes
+    let b_quote = build_unstructural_quote_bitmap(&bitmaps);
+    for (b, q) in izip!(&mut bitmaps, b_quote) {
+        b.quote ^= q;
+    }
+
+    // Step3: remove unstructural colons, left/right braces from bitmap
     let b_string = build_string_mask_bitmap(&bitmaps);
-    for (s, b) in izip!(b_string, &mut bitmaps) {
+    for (b, s) in izip!(&mut bitmaps, b_string) {
         b.colon ^= s;
         b.left_brace ^= s;
         b.right_brace ^= s;
     }
 
-    let level = 10;
-    let _b_level = build_leveled_colon_bitmap(&bitmaps, level);
+    // Step4: build leveled bitmap of colons, from (cleaned) character bitmap
+    let b_level = build_leveled_colon_bitmap(&bitmaps, level);
+
+    (bitmaps, b_level)
 }
 
 #[allow(missing_docs)]
-pub fn build_structural_character_bitmaps<B: Backend + Default>(s: &[u8]) -> Vec<Bitmap> {
-    let backend = B::default();
-
+pub fn build_structural_character_bitmaps<B: Backend>(s: &[u8], backend: &B) -> Vec<Bitmap> {
     let mut result = Vec::with_capacity((s.len() + 63) / 64);
 
     for i in 0..(s.len() / 64) {
@@ -55,8 +65,10 @@ pub fn build_structural_character_bitmaps<B: Backend + Default>(s: &[u8]) -> Vec
 }
 
 
-pub fn remove_unstructural_quotes(bitmaps: &mut [Bitmap]) {
+pub fn build_unstructural_quote_bitmap(bitmaps: &[Bitmap]) -> Vec<u64> {
     debug_assert!(bitmaps.len() > 0);
+
+    let mut b_quote = Vec::with_capacity(bitmaps.len());
 
     let mut uu = 0u64;
     for i in 0..bitmaps.len() {
@@ -81,10 +93,13 @@ pub fn remove_unstructural_quotes(bitmaps: &mut [Bitmap]) {
             bsq ^= target; // clear the target bit.
         }
 
-        // Remove unstructural quotes from quote bitmap.
-        bitmaps[i].quote &= !(uu >> 63 | u << 1);
+        b_quote.push(uu >> 63 | u << 1);
+
+        // save the current result for next iteration
         uu = u;
     }
+
+    b_quote
 }
 
 /// Compute the length of the consecutive ones in the backslash bitmap starting at `pos`
@@ -226,8 +241,9 @@ mod tests {
             },
         ];
 
+        let backend = Sse2Backend::default();
         for case in cases {
-            let actual = build_structural_character_bitmaps::<Sse2Backend>(case.input);
+            let actual = build_structural_character_bitmaps::<Sse2Backend>(case.input, &backend);
             assert_eq!(&actual[..], &case.expected[..]);
         }
     }
