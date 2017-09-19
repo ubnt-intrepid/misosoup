@@ -1,37 +1,39 @@
 //! Definition of index builder and structural indices
 
-#[allow(missing_docs)]
 pub mod backend;
 
 use bit;
 use num::Integer;
+use self::backend::Backend;
 
 
-#[allow(missing_docs)]
-pub trait Backend {
-    fn create_full_bitmap(&self, s: &[u8], offset: usize) -> Bitmap;
-    fn create_partial_bitmap(&self, s: &[u8], offset: usize) -> Bitmap;
-}
-
-
-#[allow(missing_docs)]
+/// Structural character bitmaps
 #[derive(Debug, PartialEq)]
 pub struct Bitmap {
-    backslash: u64,
-    quote: u64,
-    colon: u64,
-    left_brace: u64,
-    right_brace: u64,
+    /// backslash (`\`)
+    pub backslash: u64,
+    /// quote (`"`)
+    pub quote: u64,
+    /// colon (`:`)
+    pub colon: u64,
+    /// left brace (`{`)
+    pub left_brace: u64,
+    /// right brace (`}`)
+    pub right_brace: u64,
 }
 
-#[allow(missing_docs)]
+
+/// Structural index of a slice of bytes
 #[derive(Debug)]
 pub struct StructuralIndex {
+    /// Structural character bitmaps
     pub bitmaps: Vec<Bitmap>,
+    /// Leveled colon bitmap
     pub b_level: Vec<Vec<u64>>,
 }
 
-#[allow(missing_docs)]
+
+/// A index builder
 #[derive(Debug, Default)]
 pub struct IndexBuilder<B: Backend> {
     backend: B,
