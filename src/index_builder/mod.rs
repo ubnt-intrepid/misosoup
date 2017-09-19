@@ -21,6 +21,19 @@ pub struct Bitmap {
     right_brace: u64,
 }
 
+pub fn build_structural_indices<B: Backend + Default>(s: &[u8]) {
+    let mut bitmaps = build_structural_character_bitmaps::<B>(s);
+    remove_unstructural_quotes(&mut bitmaps);
+
+    // remove unstructural colons, left/right braces from bitmap
+    let b_string = build_string_mask_bitmap(&bitmaps);
+    for (s, b) in izip!(b_string, &mut bitmaps) {
+        b.colon ^= s;
+        b.left_brace ^= s;
+        b.right_brace ^= s;
+    }
+}
+
 #[allow(missing_docs)]
 pub fn build_structural_character_bitmaps<B: Backend + Default>(s: &[u8]) -> Vec<Bitmap> {
     let backend = B::default();
@@ -87,6 +100,36 @@ fn consecutive_ones(b: &[Bitmap], pos: u32) -> u32 {
         ones += 64;
     }
     ones
+}
+
+
+pub fn build_string_mask_bitmap(bitmaps: &[Bitmap]) -> Vec<u64> {
+    let mut b_string = Vec::with_capacity(bitmaps.len());
+
+    // The number of quotes in structural quote bitmap
+    let mut n = 0;
+
+    for b in bitmaps {
+        let mut m_quote = b.quote;
+        let mut m_string = 0u64;
+        while m_quote != 0 {
+            // invert all of bits from the rightmost 1 of `m_quote` to the end
+            m_string ^= bit::S(m_quote);
+            // remove the rightmost 1 from `m_quote`
+            m_quote = bit::R(m_quote);
+            n += 1;
+        }
+
+        if n.is_odd() {
+            m_string ^= !0u64;
+        }
+
+        b_string.push(m_string);
+    }
+
+    debug_assert!(n.is_even());
+
+    b_string
 }
 
 

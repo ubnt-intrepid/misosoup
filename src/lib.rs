@@ -4,6 +4,7 @@
 
 //! Yet another implementation of Mison JSON parser for Rust.
 
+#[macro_use]
 extern crate itertools;
 extern crate num;
 extern crate simd;
