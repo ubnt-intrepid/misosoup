@@ -14,24 +14,7 @@ extern crate maplit;
 extern crate num;
 extern crate simd;
 
+pub mod bit;
+pub mod errors;
 pub mod index_builder;
 pub mod query;
-
-mod bit;
-
-#[allow(missing_docs)]
-pub mod errors {
-    error_chain! {
-        types {
-            Error, ErrorKind, ResultExt, Result;
-        }
-
-        errors {
-            #[allow(missing_docs)]
-            InvalidQuery {
-                description("invalid query")
-                display("invalid query")
-            }
-        }
-    }
-}
