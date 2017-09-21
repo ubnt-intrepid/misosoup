@@ -10,5 +10,10 @@ error_chain! {
             description("invalid query")
             display("invalid query")
         }
+
+        InvalidRecord {
+            description("invalid record")
+            display("invalid record")
+        }
     }
 }

@@ -12,6 +12,15 @@ pub fn R(x: u64) -> u64 {
     x & x.wrapping_sub(1)
 }
 
+/// Remove the leftmost 1 in `x`
+/// ```ignore
+/// assert!( L(0b_1110_1000) == 0b_0110_1000 );
+/// ```
+#[inline]
+pub fn L(x: u64) -> u64 {
+    x & !(1u64.wrapping_shl(63 - x.leading_zeros()))
+}
+
 /// Extract the rightmost 1 in `x`
 /// ```ignore
 /// assert!( E(0b_1110_1000) == 0b_0000_1000 );

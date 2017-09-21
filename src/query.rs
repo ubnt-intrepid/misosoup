@@ -18,6 +18,33 @@ pub struct QueryNode<'a> {
     children: HashMap<&'a str, QueryNode<'a>>,
 }
 
+impl<'a> QueryNode<'a> {
+    #[allow(missing_docs)]
+    pub fn level(&self) -> usize {
+        self.level
+    }
+
+    #[allow(missing_docs)]
+    pub fn path_id(&self) -> Option<usize> {
+        self.query_id
+    }
+
+    #[allow(missing_docs)]
+    pub fn is_leaf(&self) -> bool {
+        self.children.is_empty()
+    }
+
+    #[allow(missing_docs)]
+    pub fn find_child(&self, field: &str) -> Option<&QueryNode> {
+        self.children.get(field)
+    }
+
+    #[allow(missing_docs)]
+    pub fn num_children(&self) -> usize {
+        self.children.len()
+    }
+}
+
 /// A pattern tree
 #[derive(Debug)]
 #[cfg_attr(test, derive(PartialEq))]
@@ -80,6 +107,21 @@ impl<'a> QueryTree<'a> {
         self.paths.push(path);
 
         Ok(())
+    }
+
+    #[allow(missing_docs)]
+    pub fn max_level(&self) -> usize {
+        self.max_level
+    }
+
+    #[allow(missing_docs)]
+    pub fn num_paths(&self) -> usize {
+        self.paths.len()
+    }
+
+    #[allow(missing_docs)]
+    pub fn as_node(&self) -> &QueryNode {
+        &self.root
     }
 }
 

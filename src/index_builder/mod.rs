@@ -3,6 +3,7 @@
 pub mod backend;
 
 use bit;
+use errors::{ErrorKind, Result};
 use num::Integer;
 use self::backend::Backend;
 
@@ -32,6 +33,56 @@ pub struct StructuralIndex {
     pub b_level: Vec<Vec<u64>>,
 }
 
+impl StructuralIndex {
+    /// Calculate the position of colons at `level`, between from `begin` to `end`
+    pub fn colon_positions(&self, begin: usize, end: usize, level: usize) -> Vec<usize> {
+        let mut cp = Vec::new();
+        for i in begin / 64..(end - 1 + 63) / 64 {
+            let mut m_colon = self.b_level[level][i];
+            while m_colon != 0 {
+                let m_bit = bit::E(m_colon);
+                let offset = i * 64 + (m_bit.trailing_zeros() as usize);
+                if begin <= offset && offset < end {
+                    cp.push(offset);
+                }
+                m_colon = bit::R(m_colon);
+            }
+        }
+        cp
+    }
+
+    #[allow(missing_docs)]
+    pub fn find_field(&self, begin: usize, end: usize) -> Result<(usize, usize)> {
+        let mut ei = None;
+        for i in (begin / 64..(end + 1 + 63) / 64).rev() {
+            let mut m_quote = self.bitmaps[i].quote;
+            while m_quote != 0 {
+                let offset = (i + 1) * 64 - (m_quote.leading_zeros() as usize) - 1;
+                if offset < end {
+                    if let Some(ei) = ei {
+                        let si = offset + 1;
+                        return Ok((si, ei));
+                    } else {
+                        ei = Some(offset);
+                    }
+                }
+                m_quote = bit::L(m_quote);
+            }
+        }
+
+        Err(ErrorKind::InvalidRecord.into())
+    }
+
+    #[allow(missing_docs)]
+    pub fn find_value(&self, record: &[u8], begin: usize, end: usize, last: bool) -> Result<(usize, usize)> {
+        let delim = if last { b'}' } else { b',' };
+        let pos = record[begin..end]
+            .iter()
+            .rposition(|&b| b == delim)
+            .ok_or_else(|| ErrorKind::InvalidRecord)?;
+        Ok((begin, begin + pos))
+    }
+}
 
 /// A index builder
 #[derive(Debug, Default)]
@@ -40,6 +91,11 @@ pub struct IndexBuilder<B: Backend> {
 }
 
 impl<B: Backend> IndexBuilder<B> {
+    #[allow(missing_docs)]
+    pub fn new(backend: B) -> Self {
+        Self { backend }
+    }
+
     /// Build a structural index from a slice of bytes.
     pub fn build(&self, record: &[u8], level: usize) -> StructuralIndex {
         // Step1: build character bitmap of structural characters ('\', '"', ':', '{', '}')
