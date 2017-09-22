@@ -1,8 +1,16 @@
 dependencies:
+  cache_directories:
+    - "~/.cargo/registry"
+    - "~/.rustup"
+    - "target"
   post:
-    - rm ~/.gitconfig
-    - touch ~/.gitconfig
-    - curl -sf -L https://static.rust-lang.org/rustup.sh | sh /dev/stdin --channel=nightly --yes
+    - rm ~/.gitconfig && touch ~/.gitconfig
+    - curl -sf -L https://sh.rustup.rs | sh -s -- -y --default-toolchain nightly
+    - echo "source $HOME/.cargo/env" >> ~/.bashrc
+    - rustup update nightly
+    - cargo update
+    - cargo build
+    - cargo test --no-run
 
 test:
   override:
