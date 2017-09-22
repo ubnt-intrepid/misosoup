@@ -42,13 +42,13 @@ impl StructuralIndex {
 
     #[allow(missing_docs)]
     pub fn find_field<'s>(&self, record: &'s str, begin: usize, end: usize) -> Result<&'s str> {
-        let (fsi, fei) = find_pre_field(&self.bitmaps, begin, end)?;
+        let (fsi, fei) = find_pre_field_indices(&self.bitmaps, begin, end)?;
         Ok(&record[fsi..fei])
     }
 
     #[allow(missing_docs)]
     pub fn find_value<'s>(&self, record: &'s str, begin: usize, end: usize, level: usize) -> Result<&'s str> {
-        let (vsi, vei) = find_post_value(&self.b_comma[level], &self.b_rbrace[level], begin, end)?;
+        let (vsi, vei) = find_post_value_indices(&self.b_comma[level], &self.b_rbrace[level], begin, end)?;
         Ok(record[vsi..vei].trim())
     }
 }
@@ -278,7 +278,7 @@ fn generate_colon_positions(b_colon: &[u64], begin: usize, end: usize) -> Vec<us
     cp
 }
 
-fn find_pre_field(bitmaps: &[Bitmap], begin: usize, end: usize) -> Result<(usize, usize)> {
+fn find_pre_field_indices(bitmaps: &[Bitmap], begin: usize, end: usize) -> Result<(usize, usize)> {
     let mut ei = None;
 
     for i in (begin / 64..(end + 1 + 63) / 64).rev() {
@@ -300,7 +300,7 @@ fn find_pre_field(bitmaps: &[Bitmap], begin: usize, end: usize) -> Result<(usize
     Err(ErrorKind::InvalidRecord.into())
 }
 
-fn find_post_value(b_comma: &[u64], b_rbrace: &[u64], begin: usize, end: usize) -> Result<(usize, usize)> {
+fn find_post_value_indices(b_comma: &[u64], b_rbrace: &[u64], begin: usize, end: usize) -> Result<(usize, usize)> {
     for i in begin / 64..(end - 1 + 63) / 64 {
         let mut m_delim = b_comma[i] | b_rbrace[i];
         while m_delim != 0 {
