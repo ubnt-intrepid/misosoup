@@ -1,5 +1,7 @@
 dependencies:
   post:
+    - rm ~/.gitconfig
+    - touch ~/.gitconfig
     - curl -sf -L https://static.rust-lang.org/rustup.sh | sh /dev/stdin --channel=nightly --yes
 
 test:
