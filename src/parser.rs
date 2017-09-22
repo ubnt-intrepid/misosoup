@@ -39,7 +39,7 @@ impl<'a, B: Backend> Parser<'a, B> {
         &self,
         record: &'s str,
         begin: usize,
-        mut end: usize,
+        end: usize,
         index: &StructuralIndex,
         node: &QueryNode,
         result: &mut [Option<&'s str>],
@@ -48,34 +48,35 @@ impl<'a, B: Backend> Parser<'a, B> {
         let cp = index.colon_positions(begin, end, node.level());
 
         let mut num_found = 0;
-        for i in (0..cp.len()).rev() {
-            let (fsi, fei) = index.find_field(if i == 0 { begin } else { cp[i - 1] }, cp[i])?;
-            let field = &record[fsi..fei];
+        for i in 0..cp.len() {
+            if num_found == node.num_children() {
+                break;
+            }
 
-            if let Some(c) = node.find_child(field) {
-                let (vsi, vei) = index.find_value(record.as_bytes(), cp[i] + 1, end, i == cp.len() - 1)?;
-                let value = record[vsi..vei].trim();
+            let field = index.find_field(record, if i == 0 { begin } else { cp[i - 1] }, cp[i])?;
+            let c = match node.find_child(field) {
+                Some(c) => {
+                    num_found += 1;
+                    c
+                },
+                None => continue,
+            };
+
+            let vsi = cp[i] + 1;
+            let vei = if i == cp.len() - 1 { end } else { cp[i + 1] };
+
+            if let Some(i) = c.path_id() {
+                let value = index.find_value(record, vsi, vei, node.level())?;
                 if value.is_empty() {
                     Err(ErrorKind::InvalidRecord)?;
                 }
-
-                if let Some(i) = c.path_id() {
-                    // FIXME:
-                    // assign only if the result is empty.
-                    result[i] = Some(value);
-                }
-
-                if !c.is_leaf() {
-                    self.parse_impl(record, vsi, vei, index, c, result)?;
-                }
-
-                num_found += 1;
-                if num_found == node.num_children() {
-                    break;
-                }
+                // FIXME: assign only if result[i] is empty.
+                result[i] = Some(value);
             }
 
-            end = fsi - 1;
+            if !c.is_leaf() {
+                self.parse_impl(record, vsi, vei, index, c, result)?;
+            }
         }
 
         Ok(())

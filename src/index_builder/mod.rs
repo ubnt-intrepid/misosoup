@@ -9,17 +9,14 @@ use self::backend::Backend;
 
 
 /// Structural character bitmaps
+#[allow(missing_docs)]
 #[derive(Debug, PartialEq)]
 pub struct Bitmap {
-    /// backslash (`\`)
     pub backslash: u64,
-    /// quote (`"`)
     pub quote: u64,
-    /// colon (`:`)
     pub colon: u64,
-    /// left brace (`{`)
+    pub comma: u64,
     pub left_brace: u64,
-    /// right brace (`}`)
     pub right_brace: u64,
 }
 
@@ -30,23 +27,29 @@ pub struct StructuralIndex {
     /// Structural character bitmaps
     pub bitmaps: Vec<Bitmap>,
     /// Leveled colon bitmap
-    pub b_level: Vec<Vec<u64>>,
+    pub b_colon: Vec<Vec<u64>>,
+    /// Leveled comma bitmap
+    pub b_comma: Vec<Vec<u64>>,
+    /// Leveled right-brace bitmap
+    pub b_rbrace: Vec<Vec<u64>>,
 }
 
 impl StructuralIndex {
     /// Calculate the position of colons at `level`, between from `begin` to `end`
     pub fn colon_positions(&self, begin: usize, end: usize, level: usize) -> Vec<usize> {
-        generate_colon_positions(&self.b_level[level], begin, end)
+        generate_colon_positions(&self.b_colon[level], begin, end)
     }
 
     #[allow(missing_docs)]
-    pub fn find_field(&self, begin: usize, end: usize) -> Result<(usize, usize)> {
-        find_pre_field(&self.bitmaps, begin, end)
+    pub fn find_field<'s>(&self, record: &'s str, begin: usize, end: usize) -> Result<&'s str> {
+        let (fsi, fei) = find_pre_field(&self.bitmaps, begin, end)?;
+        Ok(&record[fsi..fei])
     }
 
     #[allow(missing_docs)]
-    pub fn find_value(&self, record: &[u8], begin: usize, end: usize, last: bool) -> Result<(usize, usize)> {
-        find_post_value(record, begin, end, last)
+    pub fn find_value<'s>(&self, record: &'s str, begin: usize, end: usize, level: usize) -> Result<&'s str> {
+        let (vsi, vei) = find_post_value(&self.b_comma[level], &self.b_rbrace[level], begin, end)?;
+        Ok(record[vsi..vei].trim())
     }
 }
 
@@ -77,14 +80,20 @@ impl<B: Backend> IndexBuilder<B> {
         let b_string = build_string_mask_bitmap(&bitmaps);
         for (b, s) in izip!(&mut bitmaps, b_string) {
             b.colon &= !s;
+            b.comma &= !s;
             b.left_brace &= !s;
             b.right_brace &= !s;
         }
 
         // Step4: build leveled bitmap of colons, from (cleaned) character bitmap
-        let b_level = build_leveled_colon_bitmap(&bitmaps, level);
+        let (b_colon, b_comma, b_rbrace) = build_leveled_bitmaps(&bitmaps, level);
 
-        StructuralIndex { bitmaps, b_level }
+        StructuralIndex {
+            bitmaps,
+            b_colon,
+            b_comma,
+            b_rbrace,
+        }
     }
 }
 
@@ -188,10 +197,14 @@ fn build_string_mask_bitmap(bitmaps: &[Bitmap]) -> Vec<u64> {
     b_string
 }
 
-fn build_leveled_colon_bitmap(bitmaps: &[Bitmap], level: usize) -> Vec<Vec<u64>> {
-    let mut b_level = vec![Vec::with_capacity(bitmaps.len()); level];
+fn build_leveled_bitmaps(bitmaps: &[Bitmap], level: usize) -> (Vec<Vec<u64>>, Vec<Vec<u64>>, Vec<Vec<u64>>) {
+    let mut b_colon = vec![Vec::with_capacity(bitmaps.len()); level];
+    let mut b_comma = vec![Vec::with_capacity(bitmaps.len()); level];
+    let mut b_rbrace = vec![Vec::with_capacity(bitmaps.len()); level];
     for i in 0..level {
-        b_level[i].extend(bitmaps.iter().map(|b| b.colon));
+        b_colon[i].extend(bitmaps.iter().map(|b| b.colon));
+        b_comma[i].extend(bitmaps.iter().map(|b| b.comma));
+        b_rbrace[i].extend(bitmaps.iter().map(|b| b.right_brace));
     }
 
     let mut s = Vec::new();
@@ -213,16 +226,24 @@ fn build_leveled_colon_bitmap(bitmaps: &[Bitmap], level: usize) -> Vec<Vec<u64>>
                 m_leftbit = mlb;
 
                 if s.len() > 0 && s.len() - 1 < level {
-                    let b = &mut b_level[s.len() - 1];
+                    let b_colon = &mut b_colon[s.len() - 1];
+                    let b_comma = &mut b_comma[s.len() - 1];
+                    let b_rbrace = &mut b_rbrace[s.len() - 1];
                     if i == j {
-                        b[i] &= !(m_rightbit.wrapping_sub(m_leftbit));
+                        b_colon[i] &= !(m_rightbit.wrapping_sub(m_leftbit));
+                        b_comma[i] &= !(m_rightbit.wrapping_sub(m_leftbit));
+                        b_rbrace[i] &= !(m_rightbit.wrapping_sub(m_leftbit)) << 1 | 1;
                     } else {
-                        b[j] &= m_leftbit.wrapping_sub(1);
-                        b[i] &= !(m_rightbit.wrapping_sub(1));
+                        b_colon[j] &= m_leftbit.wrapping_sub(1);
+                        b_comma[j] &= m_leftbit.wrapping_sub(1);
+                        b_rbrace[j] &= m_leftbit.wrapping_sub(1) << 1 | 1;
+                        b_colon[i] &= !(m_rightbit.wrapping_sub(1));
+                        b_comma[i] &= !(m_rightbit.wrapping_sub(1));
+                        b_rbrace[i] &= !(m_rightbit.wrapping_sub(1)) << 1 | 1;
                         for k in j + 1..i {
-                            // MEMO: the index is different to the paper:
-                            // b_level[s.len()][k]
-                            b[k] = 0;
+                            b_colon[k] = 0;
+                            b_comma[k] = 0;
+                            b_rbrace[k] = 0;
                         }
                     }
                 }
@@ -236,7 +257,7 @@ fn build_leveled_colon_bitmap(bitmaps: &[Bitmap], level: usize) -> Vec<Vec<u64>>
         }
     }
 
-    b_level
+    (b_colon, b_comma, b_rbrace)
 }
 
 fn generate_colon_positions(b_colon: &[u64], begin: usize, end: usize) -> Vec<usize> {
@@ -279,13 +300,19 @@ fn find_pre_field(bitmaps: &[Bitmap], begin: usize, end: usize) -> Result<(usize
     Err(ErrorKind::InvalidRecord.into())
 }
 
-fn find_post_value(record: &[u8], begin: usize, end: usize, last: bool) -> Result<(usize, usize)> {
-    let delim = if last { b'}' } else { b',' };
-    let pos = record[begin..end]
-        .iter()
-        .rposition(|&b| b == delim)
-        .ok_or_else(|| ErrorKind::InvalidRecord)?;
-    Ok((begin, begin + pos))
+fn find_post_value(b_comma: &[u64], b_rbrace: &[u64], begin: usize, end: usize) -> Result<(usize, usize)> {
+    for i in begin / 64..(end - 1 + 63) / 64 {
+        let mut m_delim = b_comma[i] | b_rbrace[i];
+        while m_delim != 0 {
+            let m_bit = bit::E(m_delim);
+            let offset = i * 64 + (m_bit.trailing_zeros() as usize);
+            if begin <= offset && offset < end {
+                return Ok((begin, offset));
+            }
+            m_delim = bit::R(m_delim);
+        }
+    }
+    Err(ErrorKind::InvalidRecord.into())
 }
 
 
@@ -311,11 +338,14 @@ mod tests {
                             backslash: 0,
                             quote: 0,
                             colon: 0,
+                            comma: 0,
                             left_brace: 0b0000_0001,
                             right_brace: 0b0000_0010,
                         },
                     ],
-                    b_level: vec![vec![0]],
+                    b_colon: vec![vec![0]],
+                    b_comma: vec![vec![0]],
+                    b_rbrace: vec![vec![2]],
                 },
             },
             TestCase {
@@ -327,11 +357,14 @@ mod tests {
                             backslash: 0b_0000_0000_1100_1000,
                             quote: 0b_0000_0001_0000_0010,
                             colon: 0b_0000_0010_0000_0000,
+                            comma: 0,
                             left_brace: 0b_0000_0000_0000_0001,
                             right_brace: 0b_0001_0000_0000_0000,
                         },
                     ],
-                    b_level: vec![vec![0b_0000_0010_0000_0000]],
+                    b_colon: vec![vec![0b_0000_0010_0000_0000]],
+                    b_comma: vec![vec![0b_0000_0000_0000_0000]],
+                    b_rbrace: vec![vec![4096]],
                 },
             },
             TestCase {
@@ -343,17 +376,57 @@ mod tests {
                             backslash: 0b_0000_0110_0001_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000,
                             quote: 0b_0000_1000_0000_1010_0100_0010_0010_0100_1000_0000_0100_1000_1001_0010_1010_0100,
                             colon: 0b_0000_0000_0000_0100_0000_0000_0000_1000_0000_0000_1000_0001_0000_0000_0100_0000,
+                            comma: 0b_0000_0000_0000_0000_0001_0000_0000_0000_0010_0000_0000_0000_0000_0100_0000_0000,
                             left_brace: 0b_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0010_0000_0000_0000_0001,
                             right_brace: 0b_0010_0000_0000_0000_0000_1000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000,
                         },
                     ],
-                    b_level: vec![
+                    b_colon: vec![
                         vec![
                             0b_0000_0000_0000_0100_0000_0000_0000_0000_0000_0000_0000_0001_0000_0000_0100_0000,
                         ],
                         vec![
                             0b_0000_0000_0000_0100_0000_0000_0000_1000_0000_0000_1000_0001_0000_0000_0100_0000,
                         ],
+                    ],
+                    b_comma: vec![
+                        vec![
+                            0b_0000_0000_0000_0000_0001_0000_0000_0000_0000_0000_0000_0000_0000_0100_0000_0000,
+                        ],
+                        vec![
+                            0b_0000_0000_0000_0000_0001_0000_0000_0000_0010_0000_0000_0000_0000_0100_0000_0000,
+                        ],
+                    ],
+                    b_rbrace: vec![
+                        vec![
+                            0b_0010_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000,
+                        ],
+                        vec![
+                            0b_0010_0000_0000_0000_0000_1000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000,
+                        ],
+                    ],
+                },
+            },
+            TestCase {
+                input: r#"{ "f1": { "e1": { "d1": true } } }"#.as_bytes(),
+                level: 3,
+                expected: StructuralIndex {
+                    bitmaps: vec![
+                        Bitmap {
+                            backslash: 0,
+                            quote: 2368548,
+                            colon: 4210752,
+                            comma: 0,
+                            left_brace: 65793,
+                            right_brace: 11274289152,
+                        },
+                    ],
+                    b_colon: vec![vec![64], vec![16448], vec![4210752]],
+                    b_comma: vec![vec![0], vec![0], vec![0]],
+                    b_rbrace: vec![
+                        vec![0b_0010_0000_0000_0000_0000_0000_0000_0000_0000],
+                        vec![0b_0010_1000_0000_0000_0000_0000_0000_0000_0000],
+                        vec![0b_0010_1010_0000_0000_0000_0000_0000_0000_0000],
                     ],
                 },
             },

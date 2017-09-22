@@ -9,6 +9,7 @@ pub struct Sse2Backend {
     backslash: u8x16,
     quote: u8x16,
     colon: u8x16,
+    comma: u8x16,
     left_brace: u8x16,
     right_brace: u8x16,
 }
@@ -19,6 +20,7 @@ impl Default for Sse2Backend {
             backslash: u8x16::splat(b'\\'),
             quote: u8x16::splat(b'"'),
             colon: u8x16::splat(b':'),
+            comma: u8x16::splat(b','),
             left_brace: u8x16::splat(b'{'),
             right_brace: u8x16::splat(b'}'),
         }
@@ -35,6 +37,7 @@ impl Backend for Sse2Backend {
             backslash: cmp4(self.backslash, b0, b1, b2, b3),
             quote: cmp4(self.quote, b0, b1, b2, b3),
             colon: cmp4(self.colon, b0, b1, b2, b3),
+            comma: cmp4(self.comma, b0, b1, b2, b3),
             left_brace: cmp4(self.left_brace, b0, b1, b2, b3),
             right_brace: cmp4(self.right_brace, b0, b1, b2, b3),
         }
@@ -48,6 +51,7 @@ impl Backend for Sse2Backend {
                     backslash: cmp1(self.backslash, b0),
                     quote: cmp1(self.quote, b0),
                     colon: cmp1(self.colon, b0),
+                    comma: cmp1(self.comma, b0),
                     left_brace: cmp1(self.left_brace, b0),
                     right_brace: cmp1(self.right_brace, b0),
                 }
@@ -58,6 +62,7 @@ impl Backend for Sse2Backend {
                     backslash: cmp1(self.backslash, b0),
                     quote: cmp1(self.quote, b0),
                     colon: cmp1(self.colon, b0),
+                    comma: cmp1(self.comma, b0),
                     left_brace: cmp1(self.left_brace, b0),
                     right_brace: cmp1(self.right_brace, b0),
                 }
@@ -69,6 +74,7 @@ impl Backend for Sse2Backend {
                     backslash: cmp2(self.backslash, b0, b1),
                     quote: cmp2(self.quote, b0, b1),
                     colon: cmp2(self.colon, b0, b1),
+                    comma: cmp2(self.comma, b0, b1),
                     left_brace: cmp2(self.left_brace, b0, b1),
                     right_brace: cmp2(self.right_brace, b0, b1),
                 }
@@ -80,6 +86,7 @@ impl Backend for Sse2Backend {
                     backslash: cmp2(self.backslash, b0, b1),
                     quote: cmp2(self.quote, b0, b1),
                     colon: cmp2(self.colon, b0, b1),
+                    comma: cmp2(self.comma, b0, b1),
                     left_brace: cmp2(self.left_brace, b0, b1),
                     right_brace: cmp2(self.right_brace, b0, b1),
                 }
@@ -92,6 +99,7 @@ impl Backend for Sse2Backend {
                     backslash: cmp3(self.backslash, b0, b1, b2),
                     quote: cmp3(self.quote, b0, b1, b2),
                     colon: cmp3(self.colon, b0, b1, b2),
+                    comma: cmp3(self.comma, b0, b1, b2),
                     left_brace: cmp3(self.left_brace, b0, b1, b2),
                     right_brace: cmp3(self.right_brace, b0, b1, b2),
                 }
@@ -104,6 +112,7 @@ impl Backend for Sse2Backend {
                     backslash: cmp3(self.backslash, b0, b1, b2),
                     quote: cmp3(self.quote, b0, b1, b2),
                     colon: cmp3(self.colon, b0, b1, b2),
+                    comma: cmp3(self.comma, b0, b1, b2),
                     left_brace: cmp3(self.left_brace, b0, b1, b2),
                     right_brace: cmp3(self.right_brace, b0, b1, b2),
                 }
@@ -117,6 +126,7 @@ impl Backend for Sse2Backend {
                     backslash: cmp4(self.backslash, b0, b1, b2, b3),
                     quote: cmp4(self.quote, b0, b1, b2, b3),
                     colon: cmp4(self.colon, b0, b1, b2, b3),
+                    comma: cmp4(self.comma, b0, b1, b2, b3),
                     left_brace: cmp4(self.left_brace, b0, b1, b2, b3),
                     right_brace: cmp4(self.right_brace, b0, b1, b2, b3),
                 }
