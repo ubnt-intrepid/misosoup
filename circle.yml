@@ -1,0 +1,22 @@
+machine:
+  services:
+    - docker
+
+dependencies:
+  pre:
+    - curl -sf -L https://static.rust-lang.org/rustup.sh | sh /dev/stdin --channel=nightly --yes
+  override:
+    - eval `ssh-agent` && ssh-add ~/.ssh/id_circleci_github && cargo build
+
+test:
+  override:
+    - eval `ssh-agent` && ssh-add ~/.ssh/id_circleci_github && cargo test
+
+deployment:
+  hub:
+    branch: master
+    commands:
+      - eval `ssh-agent` && ssh-add ~/.ssh/id_circleci_github && cargo build --release
+      - docker build -t $CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME:latest .
+      - docker login -e $DOCKER_EMAIL -u $DOCKER_USER -p $DOCKER_PASS
+      - docker push $CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME:latest
