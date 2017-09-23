@@ -66,34 +66,25 @@ impl<B: Backend> IndexBuilder<B> {
     }
 
     /// Build a structural index from a slice of bytes.
-    pub fn build(&self, record: &[u8], level: usize) -> StructuralIndex {
-        // Step1: build character bitmap of structural characters ('\', '"', ':', '{', '}')
+    pub fn build(&self, record: &[u8], level: usize) -> Result<StructuralIndex> {
+        // Step 1
         let mut bitmaps = build_structural_character_bitmaps(record, &self.backend);
 
-        // Step2: remove unstrucural quotes
-        let b_quote = build_unstructural_quote_bitmap(&bitmaps);
-        for (b, q) in izip!(&mut bitmaps, b_quote) {
-            b.quote &= !q;
-        }
+        // Step 2
+        remove_unstructural_quotes(&mut bitmaps);
 
-        // Step3: remove unstructural colons, left/right braces from bitmap
-        let b_string = build_string_mask_bitmap(&bitmaps);
-        for (b, s) in izip!(&mut bitmaps, b_string) {
-            b.colon &= !s;
-            b.comma &= !s;
-            b.left_brace &= !s;
-            b.right_brace &= !s;
-        }
+        // Step 3
+        remove_unstructural_characters(&mut bitmaps);
 
-        // Step4: build leveled bitmap of colons, from (cleaned) character bitmap
-        let (b_colon, b_comma, b_rbrace) = build_leveled_bitmaps(&bitmaps, level);
+        // Step 4
+        let (b_colon, b_comma, b_rbrace) = build_leveled_bitmaps(&bitmaps, level)?;
 
-        StructuralIndex {
+        Ok(StructuralIndex {
             bitmaps,
             b_colon,
             b_comma,
             b_rbrace,
-        }
+        })
     }
 }
 
@@ -113,11 +104,7 @@ fn build_structural_character_bitmaps<B: Backend>(s: &[u8], backend: &B) -> Vec<
     result
 }
 
-fn build_unstructural_quote_bitmap(bitmaps: &[Bitmap]) -> Vec<u64> {
-    debug_assert!(bitmaps.len() > 0);
-
-    let mut b_quote = Vec::with_capacity(bitmaps.len());
-
+fn remove_unstructural_quotes(bitmaps: &mut [Bitmap]) {
     let mut uu = 0u64;
     for i in 0..bitmaps.len() {
         // extract the backslash bitmap, whose succeeding element is a quote.
@@ -141,13 +128,11 @@ fn build_unstructural_quote_bitmap(bitmaps: &[Bitmap]) -> Vec<u64> {
             bsq ^= target; // clear the target bit.
         }
 
-        b_quote.push(uu >> 63 | u << 1);
+        bitmaps[i].quote &= !(uu >> 63 | u << 1);
 
         // save the current result for next iteration
         uu = u;
     }
-
-    b_quote
 }
 
 /// Compute the length of the consecutive ones in the backslash bitmap starting at `pos`
@@ -168,9 +153,7 @@ fn consecutive_ones(b: &[Bitmap], pos: u32) -> u32 {
     ones
 }
 
-fn build_string_mask_bitmap(bitmaps: &[Bitmap]) -> Vec<u64> {
-    let mut b_string = Vec::with_capacity(bitmaps.len());
-
+fn remove_unstructural_characters(bitmaps: &mut [Bitmap]) {
     // The number of quotes in structural quote bitmap
     let mut n = 0;
 
@@ -189,15 +172,16 @@ fn build_string_mask_bitmap(bitmaps: &[Bitmap]) -> Vec<u64> {
             m_string ^= !0u64;
         }
 
-        b_string.push(m_string);
+        b.colon &= !m_string;
+        b.comma &= !m_string;
+        b.left_brace &= !m_string;
+        b.right_brace &= !m_string;
     }
 
     debug_assert!(n.is_even());
-
-    b_string
 }
 
-fn build_leveled_bitmaps(bitmaps: &[Bitmap], level: usize) -> (Vec<Vec<u64>>, Vec<Vec<u64>>, Vec<Vec<u64>>) {
+fn build_leveled_bitmaps(bitmaps: &[Bitmap], level: usize) -> Result<(Vec<Vec<u64>>, Vec<Vec<u64>>, Vec<Vec<u64>>)> {
     let mut b_colon = vec![Vec::with_capacity(bitmaps.len()); level];
     let mut b_comma = vec![Vec::with_capacity(bitmaps.len()); level];
     let mut b_rbrace = vec![Vec::with_capacity(bitmaps.len()); level];
@@ -222,24 +206,30 @@ fn build_leveled_bitmaps(bitmaps: &[Bitmap], level: usize) -> (Vec<Vec<u64>>, Ve
             }
 
             if m_rightbit != 0 {
-                let (j, mlb) = s.pop().unwrap();
+                let (j, mlb) = s.pop().ok_or_else(|| ErrorKind::InvalidRecord)?;
                 m_leftbit = mlb;
 
                 if s.len() > 0 && s.len() - 1 < level {
                     let b_colon = &mut b_colon[s.len() - 1];
                     let b_comma = &mut b_comma[s.len() - 1];
                     let b_rbrace = &mut b_rbrace[s.len() - 1];
+
                     if i == j {
-                        b_colon[i] &= !(m_rightbit.wrapping_sub(m_leftbit));
-                        b_comma[i] &= !(m_rightbit.wrapping_sub(m_leftbit));
-                        b_rbrace[i] &= !(m_rightbit.wrapping_sub(m_leftbit)) << 1 | 1;
+                        let mask = !m_rightbit.wrapping_sub(m_leftbit);
+                        b_colon[i] &= mask;
+                        b_comma[i] &= mask;
+                        b_rbrace[i] &= mask & !m_rightbit;
                     } else {
-                        b_colon[j] &= m_leftbit.wrapping_sub(1);
-                        b_comma[j] &= m_leftbit.wrapping_sub(1);
-                        b_rbrace[j] &= m_leftbit.wrapping_sub(1) << 1 | 1;
-                        b_colon[i] &= !(m_rightbit.wrapping_sub(1));
-                        b_comma[i] &= !(m_rightbit.wrapping_sub(1));
-                        b_rbrace[i] &= !(m_rightbit.wrapping_sub(1)) << 1 | 1;
+                        let mask = m_leftbit.wrapping_sub(1);
+                        b_colon[j] &= mask;
+                        b_comma[j] &= mask;
+                        b_rbrace[j] &= mask;
+
+                        let mask = !m_rightbit.wrapping_sub(1);
+                        b_colon[i] &= mask;
+                        b_comma[i] &= mask;
+                        b_rbrace[i] &= mask & !m_rightbit;
+
                         for k in j + 1..i {
                             b_colon[k] = 0;
                             b_comma[k] = 0;
@@ -257,7 +247,7 @@ fn build_leveled_bitmaps(bitmaps: &[Bitmap], level: usize) -> (Vec<Vec<u64>>, Ve
         }
     }
 
-    (b_colon, b_comma, b_rbrace)
+    Ok((b_colon, b_comma, b_rbrace))
 }
 
 fn generate_colon_positions(b_colon: &[u64], begin: usize, end: usize) -> Vec<usize> {
@@ -434,7 +424,7 @@ mod tests {
 
         let index_builder = IndexBuilder::<Sse2Backend>::default();
         for t in cases {
-            let actual = index_builder.build(t.input, t.level);
+            let actual = index_builder.build(t.input, t.level).unwrap();
             assert_eq!(t.expected, actual);
         }
     }

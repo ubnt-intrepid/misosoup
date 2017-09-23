@@ -22,7 +22,7 @@ impl<'a, B: Backend> Parser<'a, B> {
 
     pub fn parse<'s>(&self, record: &'s str) -> Result<Vec<Option<&'s str>>> {
         let index = self.index_builder
-            .build(record.as_bytes(), self.queries.max_level());
+            .build(record.as_bytes(), self.queries.max_level())?;
         let mut result = vec![None; self.queries.num_paths()];
         self.parse_impl(
             record,
@@ -58,7 +58,7 @@ impl<'a, B: Backend> Parser<'a, B> {
                 Some(c) => {
                     num_found += 1;
                     c
-                },
+                }
                 None => continue,
             };
 
