@@ -112,12 +112,19 @@ impl m256i {
 
     #[inline]
     fn eq(self, other: m256i) -> m256i {
-        mm256_cmpeq_epi8(self, other)
+        m256i([
+            bytewise_equal(self.0[0], other.0[0]),
+            bytewise_equal(self.0[1], other.0[1]),
+            bytewise_equal(self.0[2], other.0[2]),
+            bytewise_equal(self.0[3], other.0[3]),
+        ])
     }
 
     #[inline]
     fn move_mask(self) -> u64 {
-        mm256_movemask_epi8(self)
+        let f = 0x_8040_2010_0804_0201_u64;
+        ((self.0[0].wrapping_mul(f) >> 56) & 0x0000_00FF_u64 | (self.0[1].wrapping_mul(f) >> 48) & 0x0000_FF00_u64
+            | (self.0[2].wrapping_mul(f) >> 40) & 0x00FF_0000_u64 | (self.0[3].wrapping_mul(f) >> 32) & 0xFF00_0000_u64)
     }
 }
 
@@ -132,8 +139,7 @@ fn cmp2(b: m256i, b0: m256i, b1: m256i) -> u64 {
     cmp1(b, b0) | (b.eq(b1).move_mask() << 32)
 }
 
-
-
+#[inline]
 fn slice_to_u64(s: &[u8], offset: usize) -> u64 {
     let mut res = 0u64;
     for (i, x) in s[offset..offset + 8].iter().enumerate() {
@@ -142,24 +148,10 @@ fn slice_to_u64(s: &[u8], offset: usize) -> u64 {
     res
 }
 
+#[inline]
 fn bytewise_equal(mut x: u64, y: u64) -> u64 {
     const LO: u64 = u64::MAX / 0xFF;
     const HI: u64 = LO << 7;
     x ^= y;
     !((((x & !HI) + !HI) | x) >> 7) & LO
-}
-
-fn mm256_cmpeq_epi8(x: m256i, y: m256i) -> m256i {
-    m256i([
-        bytewise_equal(x.0[0], y.0[0]),
-        bytewise_equal(x.0[1], y.0[1]),
-        bytewise_equal(x.0[2], y.0[2]),
-        bytewise_equal(x.0[3], y.0[3]),
-    ])
-}
-
-fn mm256_movemask_epi8(x: m256i) -> u64 {
-    let f = 0x_8040_2010_0804_0201_u64;
-    ((x.0[0].wrapping_mul(f) >> 56) & 0x0000_00FF_u64 | (x.0[1].wrapping_mul(f) >> 48) & 0x0000_FF00_u64 | (x.0[2].wrapping_mul(f) >> 40) & 0x00FF_0000_u64
-        | (x.0[3].wrapping_mul(f) >> 32) & 0xFF00_0000_u64)
 }
