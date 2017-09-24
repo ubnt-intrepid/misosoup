@@ -6,9 +6,9 @@
 
 #[macro_use]
 extern crate error_chain;
-#[macro_use]
-extern crate itertools;
 extern crate num;
+
+#[cfg(feature = "simd-accel")]
 extern crate simd;
 
 #[cfg(test)]

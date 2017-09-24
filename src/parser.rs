@@ -1,13 +1,13 @@
 #![allow(missing_docs)]
 
 use index_builder::{IndexBuilder, StructuralIndex};
-use index_builder::backend::{Backend, Sse2Backend};
+use index_builder::backend::Backend;
 use query::{QueryNode, QueryTree};
 use errors::{ErrorKind, Result};
 
 
 #[derive(Debug)]
-pub struct Parser<'a, B: Backend = Sse2Backend> {
+pub struct Parser<'a, B: Backend> {
     queries: QueryTree<'a>,
     index_builder: IndexBuilder<B>,
 }
@@ -86,6 +86,7 @@ impl<'a, B: Backend> Parser<'a, B> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use super::super::index_builder::backend::FallbackBackend;
 
     #[test]
     fn basic_parsing() {
@@ -104,7 +105,7 @@ mod tests {
             queries.add_path(path).unwrap();
         }
 
-        let backend = Sse2Backend::default();
+        let backend = FallbackBackend::default();
         let index_builder = IndexBuilder::new(backend);
 
         let parser = Parser::new(queries, index_builder);
@@ -123,7 +124,7 @@ mod tests {
         let mut queries = QueryTree::default();
         queries.add_path("$.f1").unwrap();
 
-        let backend = Sse2Backend::default();
+        let backend = FallbackBackend::default();
         let index_builder = IndexBuilder::new(backend);
 
         let parser = Parser::new(queries, index_builder);

@@ -1,9 +1,11 @@
 //! Definition of backends to create character bitmaps
 
+#[cfg(feature = "simd-accel")]
 mod sse2;
 mod fallback;
 
 pub use self::fallback::FallbackBackend;
+#[cfg(feature = "simd-accel")]
 pub use self::sse2::Sse2Backend;
 use super::Bitmap;
 

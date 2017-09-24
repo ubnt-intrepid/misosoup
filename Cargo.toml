@@ -4,10 +4,14 @@ version = "0.1.0"
 authors = ["Yusuke Sasaki <y_sasaki@nuem.nagoya-u.ac.jp>"]
 
 [dependencies]
-simd = "*"
-itertools = "*"
 num = "*"
 error-chain = "*"
 
+simd = { version = "*", optional = true }
+
 [dev-dependencies]
 maplit = "*"
+
+[features]
+default = []
+simd-accel = ["simd"]

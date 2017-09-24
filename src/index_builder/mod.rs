@@ -309,7 +309,7 @@ fn find_post_value_indices(b_comma: &[u64], b_rbrace: &[u64], begin: usize, end:
 #[cfg(test)]
 mod tests {
     use super::*;
-    use super::backend::Sse2Backend;
+    use super::backend::FallbackBackend;
 
     #[test]
     fn test_structural_character_bitmaps() {
@@ -422,7 +422,7 @@ mod tests {
             },
         ];
 
-        let index_builder = IndexBuilder::<Sse2Backend>::default();
+        let index_builder = IndexBuilder::<FallbackBackend>::default();
         for t in cases {
             let actual = index_builder.build(t.input, t.level).unwrap();
             assert_eq!(t.expected, actual);
