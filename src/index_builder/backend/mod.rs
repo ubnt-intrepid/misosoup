@@ -1,7 +1,9 @@
 //! Definition of backends to create character bitmaps
 
 mod sse2;
+mod fallback;
 
+pub use self::fallback::FallbackBackend;
 pub use self::sse2::Sse2Backend;
 use super::Bitmap;
 
