@@ -1,6 +1,8 @@
 #![feature(test)]
 
 extern crate mison;
+#[macro_use]
+extern crate serde_derive;
 extern crate serde_json;
 extern crate test;
 
@@ -29,6 +31,35 @@ const INPUT: &str = r#"{
 fn bench_serde_json(b: &mut test::Bencher) {
     b.iter(|| {
         let _: serde_json::Value = serde_json::from_str(INPUT).unwrap();
+    });
+}
+
+#[bench]
+#[allow(dead_code)]
+fn bench_serde_json_typed(b: &mut test::Bencher) {
+    #[derive(Deserialize)]
+    struct Record {
+        f1: u32,
+        f2: F2,
+        f3: F3,
+    }
+    #[derive(Deserialize)]
+    struct F2 {
+        e1: bool,
+        e2: String,
+        e3: E3,
+    }
+    #[derive(Deserialize)]
+    struct E3 {
+        d1: String,
+        d2: f64,
+    }
+    #[derive(Deserialize)]
+    struct F3 {
+        e3: Option<bool>,
+    }
+    b.iter(|| {
+        let _: Record = serde_json::from_str(INPUT).unwrap();
     });
 }
 

@@ -11,6 +11,8 @@ simd = { version = "*", optional = true }
 
 [dev-dependencies]
 maplit = "*"
+serde = "*"
+serde_derive = "*"
 serde_json = "*"
 
 [features]
