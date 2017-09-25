@@ -11,6 +11,8 @@ use mison::index_builder::IndexBuilder;
 use mison::index_builder::backend::FallbackBackend;
 #[cfg(feature = "simd-accel")]
 use mison::index_builder::backend::Sse2Backend;
+#[cfg(feature = "avx-accel")]
+use mison::index_builder::backend::AvxBackend;
 
 const INPUT: &str = r#"{
     "f1": 10,
@@ -86,6 +88,16 @@ fn bench_mison_index_builder(b: &mut test::Bencher) {
 #[cfg(feature = "simd-accel")]
 fn bench_mison_index_builder_sse2(b: &mut test::Bencher) {
     let index_builder = IndexBuilder::<Sse2Backend>::default();
+
+    b.iter(|| {
+        let _ = index_builder.build(INPUT.as_bytes(), 3).unwrap();
+    });
+}
+
+#[bench]
+#[cfg(feature = "avx-accel")]
+fn bench_mison_index_builder_avx(b: &mut test::Bencher) {
+    let index_builder = IndexBuilder::<AvxBackend>::default();
 
     b.iter(|| {
         let _ = index_builder.build(INPUT.as_bytes(), 3).unwrap();

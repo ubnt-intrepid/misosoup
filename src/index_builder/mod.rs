@@ -3,7 +3,7 @@
 pub mod backend;
 
 use bit;
-use errors::{ErrorKind, Result};
+use errors::{Error, ErrorKind, Result, ResultExt};
 use num::Integer;
 use self::backend::Backend;
 
@@ -42,13 +42,21 @@ impl StructuralIndex {
 
     #[allow(missing_docs)]
     pub fn find_field<'s>(&self, record: &'s str, begin: usize, end: usize) -> Result<&'s str> {
-        let (fsi, fei) = find_pre_field_indices(&self.bitmaps, begin, end)?;
+        let (fsi, fei) = find_pre_field_indices(&self.bitmaps, begin, end).chain_err(|| "find_pre_field_indices()")?;
         Ok(&record[fsi..fei])
     }
 
     #[allow(missing_docs)]
     pub fn find_value<'s>(&self, record: &'s str, begin: usize, end: usize, level: usize) -> Result<&'s str> {
-        let (vsi, vei) = find_post_value_indices(&self.b_comma[level], &self.b_rbrace[level], begin, end)?;
+        let (vsi, vei) = find_post_value_indices(&self.b_comma[level], &self.b_rbrace[level], begin, end).chain_err(|| {
+            format!(
+                "find_post_value_indices({:?}, {:?}, {:?}, {:?})",
+                &record[begin..end],
+                begin,
+                end,
+                level
+            )
+        })?;
         Ok(record[vsi..vei].trim())
     }
 }
@@ -206,7 +214,9 @@ fn build_leveled_bitmaps(bitmaps: &[Bitmap], level: usize) -> Result<(Vec<Vec<u6
             }
 
             if m_rightbit != 0 {
-                let (j, mlb) = s.pop().ok_or_else(|| ErrorKind::InvalidRecord)?;
+                let (j, mlb) = s.pop()
+                    .ok_or_else(|| Error::from(ErrorKind::InvalidRecord))
+                    .chain_err(|| "s.pop()")?;
                 m_leftbit = mlb;
 
                 if s.len() > 0 && s.len() - 1 < level {
@@ -291,7 +301,7 @@ fn find_pre_field_indices(bitmaps: &[Bitmap], begin: usize, end: usize) -> Resul
 }
 
 fn find_post_value_indices(b_comma: &[u64], b_rbrace: &[u64], begin: usize, end: usize) -> Result<(usize, usize)> {
-    for i in begin / 64..(end - 1 + 63) / 64 {
+    for i in begin / 64..(end + 63) / 64 {
         let mut m_delim = b_comma[i] | b_rbrace[i];
         while m_delim != 0 {
             let m_bit = bit::E(m_delim);

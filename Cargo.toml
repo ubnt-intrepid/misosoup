@@ -6,8 +6,8 @@ authors = ["Yusuke Sasaki <y_sasaki@nuem.nagoya-u.ac.jp>"]
 [dependencies]
 num = "*"
 error-chain = "*"
-
 simd = { version = "*", optional = true }
+stdsimd = { version = "*", optional = true }
 
 [dev-dependencies]
 maplit = "*"
@@ -15,6 +15,15 @@ serde = "*"
 serde_derive = "*"
 serde_json = "*"
 
+[profile.release]
+debug = true
+opt-level = 3
+
+[profile.bench]
+debug = true
+opt-level = 3
+
 [features]
 default = []
 simd-accel = ["simd"]
+avx-accel = ["stdsimd"]
