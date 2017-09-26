@@ -32,9 +32,10 @@ impl Default for AvxBackend {
 }
 
 impl Backend for AvxBackend {
+    #[inline]
     fn create_full_bitmap(&self, s: &[u8], offset: usize) -> Bitmap {
-        let b0 = u8x32::load(s, offset);
-        let b1 = u8x32::load(s, offset + 32);
+        let b0 = unsafe { u8x32::load_unchecked(s, offset) };
+        let b1 = unsafe { u8x32::load_unchecked(s, offset + 32) };
         Bitmap {
             backslash: cmp2(self.backslash, b0, b1),
             quote: cmp2(self.quote, b0, b1),
@@ -45,6 +46,7 @@ impl Backend for AvxBackend {
         }
     }
 
+    #[inline]
     fn create_partial_bitmap(&self, s: &[u8], offset: usize) -> Bitmap {
         match s.len() - offset {
             x if x < 32 => {

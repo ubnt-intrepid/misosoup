@@ -76,6 +76,18 @@ fn bench_pikkr(b: &mut test::Bencher) {
 }
 
 #[bench]
+#[cfg(feature = "avx-accel")]
+fn bench_pikkr_index_builder(b: &mut test::Bencher) {
+    use pikkr::index_builder::IndexBuilder;
+    let mut index_builder = IndexBuilder::new(3);
+    b.iter(|| {
+        index_builder
+            .build_structural_indices(INPUT.as_bytes())
+            .unwrap();
+    });
+}
+
+#[bench]
 fn bench_mison_index_builder_fallback(b: &mut test::Bencher) {
     let index_builder = IndexBuilder::<FallbackBackend>::default();
 
