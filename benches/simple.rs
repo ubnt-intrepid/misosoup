@@ -31,10 +31,21 @@ fn bench_serde_json(b: &mut test::Bencher) {
 #[cfg(feature = "avx-accel")]
 fn bench_mison_avx(b: &mut test::Bencher) {
     let index_builder = IndexBuilder::<AvxBackend>::default();
-    let parser = Parser::new(index_builder);
+    let parser = Parser::new(index_builder, 3);
 
     b.iter(|| {
-        let _ = parser.parse(INPUT, 3).unwrap();
+        let _ = parser.parse(INPUT).unwrap();
+    });
+}
+
+#[bench]
+#[cfg(feature = "avx-accel")]
+fn bench_mison_avx_2(b: &mut test::Bencher) {
+    let index_builder = IndexBuilder::<AvxBackend>::default();
+    let parser = Parser::new(index_builder, 1);
+
+    b.iter(|| {
+        let _ = parser.parse(INPUT).unwrap();
     });
 }
 

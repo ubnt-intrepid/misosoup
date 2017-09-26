@@ -93,38 +93,46 @@ pub enum Value<'a> {
 #[derive(Debug)]
 pub struct Parser<B: Backend> {
     index_builder: IndexBuilder<B>,
+    max_level: usize,
 }
 
 impl<B: Backend> Parser<B> {
-    pub fn new(index_builder: IndexBuilder<B>) -> Self {
-        Self { index_builder }
+    pub fn new(index_builder: IndexBuilder<B>, max_level: usize) -> Self {
+        Self {
+            index_builder,
+            max_level,
+        }
     }
 
-    pub fn parse<'s>(&self, record: &'s str, level: usize) -> Result<Value<'s>> {
-        let index = self.index_builder.build(record.as_bytes(), level)?;
-        basic_parse(record, 0, record.len(), &index, 0)
-    }
-}
-
-fn basic_parse<'s>(record: &'s str, begin: usize, end: usize, index: &StructuralIndex, level: usize) -> Result<Value<'s>> {
-    let mut result = Vec::new();
-
-    let cp = index.colon_positions(begin, end, level);
-    for (i, _) in cp.iter().enumerate() {
-        let field = index.find_field(record, if i == 0 { begin } else { cp[i - 1] }, cp[i])?;
-
-        let vsi = cp[i] + 1;
-        let vei = if i == cp.len() - 1 { end } else { cp[i + 1] };
-        let value = match index.find_value(record, vsi, vei, level)? {
-            "" => return Err(ErrorKind::InvalidRecord.into()),
-            s if s.starts_with("{") && s.ends_with("}") => basic_parse(record, vsi, vei, index, level + 1)?,
-            s => Value::Atomic(s),
-        };
-
-        result.push((field, value));
+    pub fn parse<'s>(&self, record: &'s str) -> Result<Value<'s>> {
+        let index = self.index_builder.build(record.as_bytes(), self.max_level)?;
+        self.basic_parse(record, 0, record.len(), &index, 0)
     }
 
-    Ok(Value::Object(result))
+    fn basic_parse<'s>(&self, record: &'s str, begin: usize, end: usize, index: &StructuralIndex, level: usize) -> Result<Value<'s>> {
+        let mut result = Vec::new();
+
+        let cp = index.colon_positions(begin, end, level);
+        for (i, _) in cp.iter().enumerate() {
+            let field = index.find_field(record, if i == 0 { begin } else { cp[i - 1] }, cp[i])?;
+
+            let vsi = cp[i] + 1;
+            let vei = if i == cp.len() - 1 { end } else { cp[i + 1] };
+            let value = match index.find_value(record, vsi, vei, level)? {
+                "" => return Err(ErrorKind::InvalidRecord.into()),
+                s if s.starts_with("{") && s.ends_with("}") => if level + 1 < self.max_level {
+                    self.basic_parse(record, vsi, vei, index, level + 1)?
+                } else {
+                    Value::Atomic(s)
+                },
+                s => Value::Atomic(s),
+            };
+
+            result.push((field, value));
+        }
+
+        Ok(Value::Object(result))
+    }
 }
 
 #[cfg(test)]
