@@ -1,31 +1,24 @@
 #![feature(test)]
 
 extern crate mison;
-#[macro_use]
-extern crate serde_derive;
+extern crate pikkr;
 extern crate serde_json;
 extern crate test;
 
-use mison::parser::Parser;
+use mison::query::QueryTree;
+use mison::parser::{Parser, QueryParser};
 use mison::index_builder::IndexBuilder;
 use mison::index_builder::backend::FallbackBackend;
 #[cfg(feature = "simd-accel")]
 use mison::index_builder::backend::Sse2Backend;
+#[cfg(feature = "avx-accel")]
+use mison::index_builder::backend::AvxBackend;
 
-const INPUT: &str = r#"{
-    "f1": 10,
-    "f2": {
-        "e1": true,
-        "e2": "hoge",
-        "e3": {
-            "d1": "The quick brown fox jumps over the lazy dog.",
-            "d2": 100.2
-        }
-    },
-    "f3": {
-        "e3": null
-    }
-}"#;
+use pikkr::Pikkr;
+
+
+const INPUT: &str = include_str!("temp.json");
+
 
 #[bench]
 fn bench_serde_json(b: &mut test::Bencher) {
@@ -35,46 +28,112 @@ fn bench_serde_json(b: &mut test::Bencher) {
 }
 
 #[bench]
-#[allow(dead_code)]
-fn bench_serde_json_typed(b: &mut test::Bencher) {
-    #[derive(Deserialize)]
-    struct Record {
-        f1: u32,
-        f2: F2,
-        f3: F3,
-    }
-    #[derive(Deserialize)]
-    struct F2 {
-        e1: bool,
-        e2: String,
-        e3: E3,
-    }
-    #[derive(Deserialize)]
-    struct E3 {
-        d1: String,
-        d2: f64,
-    }
-    #[derive(Deserialize)]
-    struct F3 {
-        e3: Option<bool>,
-    }
+#[cfg(feature = "avx-accel")]
+fn bench_mison_avx(b: &mut test::Bencher) {
+    let index_builder = IndexBuilder::<AvxBackend>::default();
+    let parser = Parser::new(index_builder, 3);
+
     b.iter(|| {
-        let _: Record = serde_json::from_str(INPUT).unwrap();
+        let _ = parser.parse(INPUT).unwrap();
     });
 }
 
 #[bench]
-fn bench_mison(b: &mut test::Bencher) {
-    let index_builder = IndexBuilder::<Sse2Backend>::default();
-    let parser = Parser::new(index_builder);
+#[cfg(feature = "avx-accel")]
+fn bench_mison_avx_2(b: &mut test::Bencher) {
+    let index_builder = IndexBuilder::<AvxBackend>::default();
+    let parser = Parser::new(index_builder, 1);
 
     b.iter(|| {
-        let _ = parser.parse(INPUT, 3).unwrap();
+        let _ = parser.parse(INPUT).unwrap();
     });
 }
 
 #[bench]
-fn bench_mison_index_builder(b: &mut test::Bencher) {
+#[cfg(feature = "avx-accel")]
+fn bench_mison_avx_queried(b: &mut test::Bencher) {
+    let mut queries = QueryTree::default();
+    queries.add_path("$._id.$oid").unwrap();
+    let index_builder = IndexBuilder::<AvxBackend>::default();
+    let parser = QueryParser::new(queries, index_builder);
+
+    b.iter(|| {
+        let _ = parser.parse(INPUT).unwrap();
+    });
+}
+
+#[bench]
+#[cfg(feature = "avx-accel")]
+fn bench_mison_avx_queried_2(b: &mut test::Bencher) {
+    let mut queries = QueryTree::default();
+    queries.add_path("$._id.$oid").unwrap();
+    queries.add_path("$.partners").unwrap();
+    let index_builder = IndexBuilder::<AvxBackend>::default();
+    let parser = QueryParser::new(queries, index_builder);
+
+    b.iter(|| {
+        let _ = parser.parse(INPUT).unwrap();
+    });
+}
+
+#[bench]
+#[cfg(feature = "avx-accel")]
+fn bench_mison_avx_queried_3(b: &mut test::Bencher) {
+    let mut queries = QueryTree::default();
+    queries.add_path("$.partners").unwrap();
+    let index_builder = IndexBuilder::<AvxBackend>::default();
+    let parser = QueryParser::new(queries, index_builder);
+
+    b.iter(|| {
+        let _ = parser.parse(INPUT).unwrap();
+    });
+}
+
+#[bench]
+#[cfg(feature = "avx-accel")]
+fn bench_pikkr(b: &mut test::Bencher) {
+    let mut pikkr = Pikkr::new(&["$._id.$oid"], ::std::usize::MAX).unwrap();
+
+    b.iter(|| {
+        let _ = pikkr.parse(INPUT).unwrap();
+    });
+}
+
+#[bench]
+#[cfg(feature = "avx-accel")]
+fn bench_pikkr_2(b: &mut test::Bencher) {
+    let mut pikkr = Pikkr::new(&["$._id.$oid", "$.partners"], ::std::usize::MAX).unwrap();
+
+    b.iter(|| {
+        let _ = pikkr.parse(INPUT).unwrap();
+    });
+}
+
+#[bench]
+#[cfg(feature = "avx-accel")]
+fn bench_pikkr_3(b: &mut test::Bencher) {
+    let mut pikkr = Pikkr::new(&["$.partners"], ::std::usize::MAX).unwrap();
+
+    b.iter(|| {
+        let _ = pikkr.parse(INPUT).unwrap();
+    });
+}
+
+
+#[bench]
+#[cfg(feature = "avx-accel")]
+fn bench_pikkr_index_builder(b: &mut test::Bencher) {
+    use pikkr::index_builder::IndexBuilder;
+    let mut index_builder = IndexBuilder::new(3);
+    b.iter(|| {
+        index_builder
+            .build_structural_indices(INPUT.as_bytes())
+            .unwrap();
+    });
+}
+
+#[bench]
+fn bench_mison_index_builder_fallback(b: &mut test::Bencher) {
     let index_builder = IndexBuilder::<FallbackBackend>::default();
 
     b.iter(|| {
@@ -89,5 +148,25 @@ fn bench_mison_index_builder_sse2(b: &mut test::Bencher) {
 
     b.iter(|| {
         let _ = index_builder.build(INPUT.as_bytes(), 3).unwrap();
+    });
+}
+
+#[bench]
+#[cfg(feature = "avx-accel")]
+fn bench_mison_index_builder_avx(b: &mut test::Bencher) {
+    let index_builder = IndexBuilder::<AvxBackend>::default();
+
+    b.iter(|| {
+        let _ = index_builder.build(INPUT.as_bytes(), 3).unwrap();
+    });
+}
+
+#[bench]
+#[cfg(feature = "avx-accel")]
+fn bench_mison_index_builder_avx_2(b: &mut test::Bencher) {
+    let index_builder = IndexBuilder::<AvxBackend>::default();
+
+    b.iter(|| {
+        let _ = index_builder.build(INPUT.as_bytes(), 1).unwrap();
     });
 }

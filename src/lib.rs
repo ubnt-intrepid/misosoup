@@ -1,3 +1,4 @@
+#![feature(link_llvm_intrinsics, simd_ffi)]
 #![deny(missing_docs)]
 #![deny(missing_debug_implementations)]
 #![warn(unused_extern_crates)]
@@ -8,8 +9,8 @@
 extern crate error_chain;
 extern crate num;
 
-#[cfg(feature = "simd-accel")]
-extern crate simd;
+#[cfg(all(any(feature = "simd-accel", feature = "avx-accel"), target_arch = "x86_64"))]
+extern crate stdsimd;
 
 #[cfg(test)]
 #[macro_use]

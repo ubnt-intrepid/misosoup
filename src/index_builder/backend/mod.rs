@@ -2,11 +2,15 @@
 
 #[cfg(feature = "simd-accel")]
 mod sse2;
+#[cfg(all(feature = "avx-accel", target_arch = "x86_64"))]
+mod avx;
 mod fallback;
 
 pub use self::fallback::FallbackBackend;
 #[cfg(feature = "simd-accel")]
 pub use self::sse2::Sse2Backend;
+#[cfg(all(feature = "avx-accel", target_arch = "x86_64"))]
+pub use self::avx::AvxBackend;
 use super::Bitmap;
 
 
