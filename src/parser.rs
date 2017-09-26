@@ -23,30 +23,21 @@ impl<B: Backend> Parser<B> {
     pub fn parse<'s>(&self, record: &'s str) -> Result<Value<'s>> {
         let record = record.trim();
         let index = self.index_builder.build(record.as_bytes(), self.max_level)?;
-        match value::parse(record, 0, record.len())? {
-            ValueType::Atomic(v) => Ok(v),
-            ValueType::Array => self.parse_array(record, 0, record.len(), &index, 0),
-            ValueType::Object => self.parse_object(record, 0, record.len(), &index, 0),
-        }
+        self.parse_impl(record, 0, record.len(), 0, &index)
     }
 
     fn parse_array<'s>(&self, record: &'s str, begin: usize, end: usize, index: &StructuralIndex, level: usize) -> Result<Value<'s>> {
+        let cp = index.comma_positions(begin, end, level);
+
         let mut result = Vec::new();
 
-        let cp = index.comma_positions(begin, end, level);
-        for (i, _) in cp.iter().enumerate() {
+        for i in 0..cp.len() {
             let (vsi, vei) = trimmed(
                 record,
                 if i == 0 { begin + 1 } else { cp[i - 1] + 1 },
                 cp[i],
             );
-
-            let value = match value::parse(record, vsi, vei)? {
-                ValueType::Atomic(v) => v,
-                ValueType::Array if level + 1 < self.max_level => self.parse_array(record, vsi, vei, index, level + 1)?,
-                ValueType::Object if level + 1 < self.max_level => self.parse_object(record, vsi, vei, index, level + 1)?,
-                _ => Value::Raw(&record[vsi..vei]),
-            };
+            let value = self.parse_impl(record, vsi, vei, level + 1, index)?;
 
             result.push(value);
         }
@@ -57,13 +48,7 @@ impl<B: Backend> Parser<B> {
                 vei -= 1;
             }
             let (vsi, vei) = trimmed(record, vsi, vei);
-
-            let value = match value::parse(record, vsi, vei)? {
-                ValueType::Atomic(v) => v,
-                ValueType::Array if level + 1 < self.max_level => self.parse_array(record, vsi, vei, index, level + 1)?,
-                ValueType::Object if level + 1 < self.max_level => self.parse_object(record, vsi, vei, index, level + 1)?,
-                _ => Value::Raw(&record[vsi..vei]),
-            };
+            let value = self.parse_impl(record, vsi, vei, level + 1, index)?;
 
             result.push(value);
         }
@@ -72,9 +57,10 @@ impl<B: Backend> Parser<B> {
     }
 
     fn parse_object<'s>(&self, record: &'s str, begin: usize, mut end: usize, index: &StructuralIndex, level: usize) -> Result<Value<'s>> {
+        let cp = index.colon_positions(begin, end, level);
+
         let mut result = Vec::new();
 
-        let cp = index.colon_positions(begin, end, level);
         for i in (0..cp.len()).rev() {
             let (field, fsi) = index.find_field(record, if i == 0 { begin } else { cp[i - 1] }, cp[i])?;
 
@@ -84,13 +70,7 @@ impl<B: Backend> Parser<B> {
                 vei -= 1;
             }
             let (vsi, vei) = trimmed(record, vsi, vei);
-
-            let value = match value::parse(record, vsi, vei)? {
-                ValueType::Atomic(v) => v,
-                ValueType::Array if level + 1 < self.max_level => self.parse_array(record, vsi, vei, index, level + 1)?,
-                ValueType::Object if level + 1 < self.max_level => self.parse_object(record, vsi, vei, index, level + 1)?,
-                _ => Value::Raw(&record[vsi..vei]),
-            };
+            let value = self.parse_impl(record, vsi, vei, level + 1, index)?;
 
             result.push((field, value));
 
@@ -98,6 +78,15 @@ impl<B: Backend> Parser<B> {
         }
 
         Ok(Value::Object(result.into_iter().rev().collect()))
+    }
+
+    fn parse_impl<'s>(&self, record: &'s str, begin: usize, end: usize, level: usize, index: &StructuralIndex) -> Result<Value<'s>> {
+        match value::parse(record, begin, end)? {
+            ValueType::Atomic(v) => Ok(v),
+            ValueType::Array if level < self.max_level => self.parse_array(record, begin, end, index, level),
+            ValueType::Object if level < self.max_level => self.parse_object(record, begin, end, index, level),
+            _ => Ok(Value::Raw(&record[begin..end])),
+        }
     }
 }
 
@@ -143,14 +132,14 @@ mod tests {
         assert_eq!(
             result,
             object!{
-                "f1" => Value::Boolean(true),
+                "f1" => true,
                 "f2" => object!{
-                    "e2" => Value::String(r#""\"foo\\""#),
+                    "e2" => r#""\"foo\\""#,
                     "e1" => object!{ "c1" => Value::Null, },
                 },
                 "f3" => array![
-                    Value::Boolean(true),
-                    Value::String("\"10\""),
+                    true,
+                    r#""10""#,
                     Value::Null,
                 ],
             }
@@ -176,14 +165,14 @@ mod tests {
         assert_eq!(
             result,
             object!(
-                "f1" => Value::Boolean(true),
+                "f1" => true,
                 "f2" => object!{
-                    "e2" => Value::String(r#""\"foo\\""#),
+                    "e2" => r#""\"foo\\""#,
                     "e1" => Value::Raw(r#"{ "c1": null }"#),
                 },
                 "f3" => array![
-                    Value::Boolean(true),
-                    Value::String("\"10\""),
+                    true,
+                    r#""10""#,
                     Value::Null,
                 ],
             )
