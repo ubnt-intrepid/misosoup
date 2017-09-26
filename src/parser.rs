@@ -72,7 +72,7 @@ impl<B: Backend> Parser<B> {
             let (vsi, vei) = trimmed(record, vsi, vei);
             let value = self.parse_impl(record, vsi, vei, level + 1, index)?;
 
-            result.push((field, value));
+            result.push((field.into(), value));
 
             end = fsi - 1;
         }
@@ -80,12 +80,13 @@ impl<B: Backend> Parser<B> {
         Ok(Value::Object(result.into_iter().rev().collect()))
     }
 
+    #[inline]
     fn parse_impl<'s>(&self, record: &'s str, begin: usize, end: usize, level: usize, index: &StructuralIndex) -> Result<Value<'s>> {
         match value::parse(record, begin, end)? {
             ValueType::Atomic(v) => Ok(v),
             ValueType::Array if level < self.max_level => self.parse_array(record, begin, end, index, level),
             ValueType::Object if level < self.max_level => self.parse_object(record, begin, end, index, level),
-            _ => Ok(Value::Raw(&record[begin..end])),
+            _ => Ok(Value::raw(&record[begin..end])),
         }
     }
 }
@@ -134,12 +135,12 @@ mod tests {
             object!{
                 "f1" => true,
                 "f2" => object!{
-                    "e2" => r#""\"foo\\""#,
+                    "e2" => r#"\"foo\\"#,
                     "e1" => object!{ "c1" => Value::Null, },
                 },
                 "f3" => array![
                     true,
-                    r#""10""#,
+                    "10",
                     Value::Null,
                 ],
             }
@@ -167,12 +168,12 @@ mod tests {
             object!(
                 "f1" => true,
                 "f2" => object!{
-                    "e2" => r#""\"foo\\""#,
-                    "e1" => Value::Raw(r#"{ "c1": null }"#),
+                    "e2" => r#"\"foo\\"#,
+                    "e1" => Value::raw(r#"{ "c1": null }"#),
                 },
                 "f3" => array![
                     true,
-                    r#""10""#,
+                    "10",
                     Value::Null,
                 ],
             )
