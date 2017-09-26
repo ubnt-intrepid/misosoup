@@ -14,7 +14,7 @@ maplit = "*"
 serde = "*"
 serde_derive = "*"
 serde_json = "*"
-pikkr = { git = "https://github.com/pikkr/pikkr.git", features = ["avx-accel"] }
+pikkr = { git = "https://github.com/pikkr/pikkr.git" }
 
 [profile.release]
 debug = true
@@ -27,4 +27,4 @@ opt-level = 3
 [features]
 default = []
 simd-accel = ["simd"]
-avx-accel = ["stdsimd"]
+avx-accel = ["stdsimd", "pikkr/avx-accel"]
