@@ -6,7 +6,6 @@ authors = ["Yusuke Sasaki <y_sasaki@nuem.nagoya-u.ac.jp>"]
 [dependencies]
 num = "*"
 error-chain = "*"
-simd = { version = "*", optional = true }
 stdsimd = { version = "*", optional = true }
 
 [dev-dependencies]
@@ -26,5 +25,5 @@ opt-level = 3
 
 [features]
 default = []
-simd-accel = ["simd"]
+simd-accel = ["stdsimd"]
 avx-accel = ["stdsimd", "pikkr/avx-accel"]

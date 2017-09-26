@@ -9,10 +9,7 @@
 extern crate error_chain;
 extern crate num;
 
-#[cfg(feature = "simd-accel")]
-extern crate simd;
-
-#[cfg(all(feature = "avx-accel", target_arch = "x86_64"))]
+#[cfg(all(any(feature = "simd-accel", feature = "avx-accel"), target_arch = "x86_64"))]
 extern crate stdsimd;
 
 #[cfg(test)]
