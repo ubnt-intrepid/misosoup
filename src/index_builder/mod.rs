@@ -10,7 +10,7 @@ use self::backend::Backend;
 
 /// Structural character bitmaps
 #[allow(missing_docs)]
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Default)]
 pub struct Bitmap {
     pub backslash: u64,
     pub quote: u64,
@@ -18,6 +18,8 @@ pub struct Bitmap {
     pub comma: u64,
     pub left_brace: u64,
     pub right_brace: u64,
+    pub left_bracket: u64,
+    pub right_bracket: u64,
 }
 
 
@@ -30,34 +32,23 @@ pub struct StructuralIndex {
     pub b_colon: Vec<Vec<u64>>,
     /// Leveled comma bitmap
     pub b_comma: Vec<Vec<u64>>,
-    /// Leveled right-brace bitmap
-    pub b_rbrace: Vec<Vec<u64>>,
 }
 
 impl StructuralIndex {
     /// Calculate the position of colons at `level`, between from `begin` to `end`
     pub fn colon_positions(&self, begin: usize, end: usize, level: usize) -> Vec<usize> {
-        generate_colon_positions(&self.b_colon[level], begin, end)
+        generate_positions(&self.b_colon[level], begin, end)
+    }
+
+    /// Calculate the position of colons at `level`, between from `begin` to `end`
+    pub fn comma_positions(&self, begin: usize, end: usize, level: usize) -> Vec<usize> {
+        generate_positions(&self.b_comma[level], begin, end)
     }
 
     #[allow(missing_docs)]
-    pub fn find_field<'s>(&self, record: &'s str, begin: usize, end: usize) -> Result<&'s str> {
+    pub fn find_field<'s>(&self, record: &'s str, begin: usize, end: usize) -> Result<(&'s str, usize)> {
         let (fsi, fei) = find_pre_field_indices(&self.bitmaps, begin, end).chain_err(|| "find_pre_field_indices()")?;
-        Ok(&record[fsi..fei])
-    }
-
-    #[allow(missing_docs)]
-    pub fn find_value<'s>(&self, record: &'s str, begin: usize, end: usize, level: usize) -> Result<&'s str> {
-        let (vsi, vei) = find_post_value_indices(&self.b_comma[level], &self.b_rbrace[level], begin, end).chain_err(|| {
-            format!(
-                "find_post_value_indices({:?}, {:?}, {:?}, {:?})",
-                &record[begin..end],
-                begin,
-                end,
-                level
-            )
-        })?;
-        Ok(record[vsi..vei].trim())
+        Ok((&record[fsi..fei], fsi))
     }
 }
 
@@ -85,13 +76,12 @@ impl<B: Backend> IndexBuilder<B> {
         remove_unstructural_characters(&mut bitmaps);
 
         // Step 4
-        let (b_colon, b_comma, b_rbrace) = build_leveled_bitmaps(&bitmaps, level)?;
+        let (b_colon, b_comma) = build_leveled_bitmaps(&bitmaps, level)?;
 
         Ok(StructuralIndex {
             bitmaps,
             b_colon,
             b_comma,
-            b_rbrace,
         })
     }
 }
@@ -184,66 +174,65 @@ fn remove_unstructural_characters(bitmaps: &mut [Bitmap]) {
         b.comma &= !m_string;
         b.left_brace &= !m_string;
         b.right_brace &= !m_string;
+        b.left_bracket &= !m_string;
+        b.right_bracket &= !m_string;
     }
 
     debug_assert!(n.is_even());
 }
 
-fn build_leveled_bitmaps(bitmaps: &[Bitmap], level: usize) -> Result<(Vec<Vec<u64>>, Vec<Vec<u64>>, Vec<Vec<u64>>)> {
+fn build_leveled_bitmaps(bitmaps: &[Bitmap], level: usize) -> Result<(Vec<Vec<u64>>, Vec<Vec<u64>>)> {
     let mut b_colon = vec![Vec::with_capacity(bitmaps.len()); level];
     let mut b_comma = vec![Vec::with_capacity(bitmaps.len()); level];
-    let mut b_rbrace = vec![Vec::with_capacity(bitmaps.len()); level];
     for i in 0..level {
         b_colon[i].extend(bitmaps.iter().map(|b| b.colon));
         b_comma[i].extend(bitmaps.iter().map(|b| b.comma));
-        b_rbrace[i].extend(bitmaps.iter().map(|b| b.right_brace));
     }
 
     let mut s = Vec::new();
     for (i, b) in bitmaps.iter().enumerate() {
-        let mut m_left = b.left_brace;
-        let mut m_right = b.right_brace;
+        let mut m_left = b.left_brace | b.left_bracket;
+        let mut m_right = b.right_brace | b.right_bracket;
 
         loop {
             let m_rightbit = bit::E(m_right);
             let mut m_leftbit = bit::E(m_left);
             while m_leftbit != 0 && (m_rightbit == 0 || m_leftbit < m_rightbit) {
-                s.push((i, m_leftbit));
+                let t = m_leftbit & b.left_brace != 0;
+                s.push((i, m_leftbit, t));
                 m_left = bit::R(m_left);
                 m_leftbit = bit::E(m_left);
             }
 
             if m_rightbit != 0 {
-                let (j, mlb) = s.pop()
+                let (j, mlb, t) = s.pop()
                     .ok_or_else(|| Error::from(ErrorKind::InvalidRecord))
                     .chain_err(|| "s.pop()")?;
+                if t != (m_rightbit & b.right_brace != 0) {
+                    return Err(Error::from(ErrorKind::InvalidRecord)).chain_err(|| "invalid bracket/brace");
+                }
                 m_leftbit = mlb;
 
                 if s.len() > 0 && s.len() - 1 < level {
                     let b_colon = &mut b_colon[s.len() - 1];
                     let b_comma = &mut b_comma[s.len() - 1];
-                    let b_rbrace = &mut b_rbrace[s.len() - 1];
 
                     if i == j {
                         let mask = !m_rightbit.wrapping_sub(m_leftbit);
                         b_colon[i] &= mask;
                         b_comma[i] &= mask;
-                        b_rbrace[i] &= mask & !m_rightbit;
                     } else {
                         let mask = m_leftbit.wrapping_sub(1);
                         b_colon[j] &= mask;
                         b_comma[j] &= mask;
-                        b_rbrace[j] &= mask;
 
                         let mask = !m_rightbit.wrapping_sub(1);
                         b_colon[i] &= mask;
                         b_comma[i] &= mask;
-                        b_rbrace[i] &= mask & !m_rightbit;
 
                         for k in j + 1..i {
                             b_colon[k] = 0;
                             b_comma[k] = 0;
-                            b_rbrace[k] = 0;
                         }
                     }
                 }
@@ -257,21 +246,21 @@ fn build_leveled_bitmaps(bitmaps: &[Bitmap], level: usize) -> Result<(Vec<Vec<u6
         }
     }
 
-    Ok((b_colon, b_comma, b_rbrace))
+    Ok((b_colon, b_comma))
 }
 
-fn generate_colon_positions(b_colon: &[u64], begin: usize, end: usize) -> Vec<usize> {
+fn generate_positions(bitmap: &[u64], begin: usize, end: usize) -> Vec<usize> {
     let mut cp = Vec::new();
 
     for i in begin / 64..(end - 1 + 63) / 64 {
-        let mut m_colon = b_colon[i];
-        while m_colon != 0 {
-            let m_bit = bit::E(m_colon);
+        let mut m_bits = bitmap[i];
+        while m_bits != 0 {
+            let m_bit = bit::E(m_bits);
             let offset = i * 64 + (m_bit.trailing_zeros() as usize);
             if begin <= offset && offset < end {
                 cp.push(offset);
             }
-            m_colon = bit::R(m_colon);
+            m_bits = bit::R(m_bits);
         }
     }
 
@@ -297,21 +286,6 @@ fn find_pre_field_indices(bitmaps: &[Bitmap], begin: usize, end: usize) -> Resul
         }
     }
 
-    Err(ErrorKind::InvalidRecord.into())
-}
-
-fn find_post_value_indices(b_comma: &[u64], b_rbrace: &[u64], begin: usize, end: usize) -> Result<(usize, usize)> {
-    for i in begin / 64..(end + 63) / 64 {
-        let mut m_delim = b_comma[i] | b_rbrace[i];
-        while m_delim != 0 {
-            let m_bit = bit::E(m_delim);
-            let offset = i * 64 + (m_bit.trailing_zeros() as usize);
-            if begin <= offset && offset < end {
-                return Ok((begin, offset));
-            }
-            m_delim = bit::R(m_delim);
-        }
-    }
     Err(ErrorKind::InvalidRecord.into())
 }
 
@@ -341,11 +315,12 @@ mod tests {
                             comma: 0,
                             left_brace: 0b0000_0001,
                             right_brace: 0b0000_0010,
+                            left_bracket: 0,
+                            right_bracket: 0,
                         },
                     ],
                     b_colon: vec![vec![0]],
                     b_comma: vec![vec![0]],
-                    b_rbrace: vec![vec![2]],
                 },
             },
             TestCase {
@@ -360,11 +335,12 @@ mod tests {
                             comma: 0,
                             left_brace: 0b_0000_0000_0000_0001,
                             right_brace: 0b_0001_0000_0000_0000,
+                            left_bracket: 0,
+                            right_bracket: 0,
                         },
                     ],
                     b_colon: vec![vec![0b_0000_0010_0000_0000]],
                     b_comma: vec![vec![0b_0000_0000_0000_0000]],
-                    b_rbrace: vec![vec![4096]],
                 },
             },
             TestCase {
@@ -379,6 +355,8 @@ mod tests {
                             comma: 0b_0000_0000_0000_0000_0001_0000_0000_0000_0010_0000_0000_0000_0000_0100_0000_0000,
                             left_brace: 0b_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0010_0000_0000_0000_0001,
                             right_brace: 0b_0010_0000_0000_0000_0000_1000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000,
+                            left_bracket: 0,
+                            right_bracket: 0,
                         },
                     ],
                     b_colon: vec![
@@ -397,14 +375,6 @@ mod tests {
                             0b_0000_0000_0000_0000_0001_0000_0000_0000_0010_0000_0000_0000_0000_0100_0000_0000,
                         ],
                     ],
-                    b_rbrace: vec![
-                        vec![
-                            0b_0010_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000,
-                        ],
-                        vec![
-                            0b_0010_0000_0000_0000_0000_1000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000,
-                        ],
-                    ],
                 },
             },
             TestCase {
@@ -419,14 +389,38 @@ mod tests {
                             comma: 0,
                             left_brace: 65793,
                             right_brace: 11274289152,
+                            left_bracket: 0,
+                            right_bracket: 0,
                         },
                     ],
                     b_colon: vec![vec![64], vec![16448], vec![4210752]],
                     b_comma: vec![vec![0], vec![0], vec![0]],
-                    b_rbrace: vec![
-                        vec![0b_0010_0000_0000_0000_0000_0000_0000_0000_0000],
-                        vec![0b_0010_1000_0000_0000_0000_0000_0000_0000_0000],
-                        vec![0b_0010_1010_0000_0000_0000_0000_0000_0000_0000],
+                },
+            },
+            TestCase {
+                input: br#"{ "a": [0, 1, 2] }"#,
+                level: 2,
+                expected: StructuralIndex {
+                    bitmaps: vec![
+                        Bitmap {
+                            backslash: 0,
+                            quote: 20,
+                            colon: 32,
+                            comma: 4608,
+                            left_brace: 1,
+                            right_brace: 131072,
+                            left_bracket: 128,
+                            right_bracket: 32768,
+                        },
+                    ],
+                    //    }_ ]2_, 1_,0 [_:" a"_{
+                    b_colon: vec![
+                        vec![0b_0000_0000_0000_0010_0000],
+                        vec![0b_0000_0000_0000_0010_0000],
+                    ],
+                    b_comma: vec![
+                        vec![0b_0000_0000_0000_0000_0000],
+                        vec![0b_0000_0001_0010_0000_0000],
                     ],
                 },
             },

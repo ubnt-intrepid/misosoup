@@ -16,6 +16,8 @@ pub struct AvxBackend {
     comma: u8x32,
     left_brace: u8x32,
     right_brace: u8x32,
+    left_bracket: u8x32,
+    right_bracket: u8x32,
 }
 
 impl Default for AvxBackend {
@@ -27,6 +29,8 @@ impl Default for AvxBackend {
             comma: u8x32::splat(b','),
             left_brace: u8x32::splat(b'{'),
             right_brace: u8x32::splat(b'}'),
+            left_bracket: u8x32::splat(b'['),
+            right_bracket: u8x32::splat(b']'),
         }
     }
 }
@@ -43,6 +47,8 @@ impl Backend for AvxBackend {
             comma: cmp2(self.comma, b0, b1),
             left_brace: cmp2(self.left_brace, b0, b1),
             right_brace: cmp2(self.right_brace, b0, b1),
+            left_bracket: cmp2(self.left_bracket, b0, b1),
+            right_bracket: cmp2(self.right_bracket, b0, b1),
         }
     }
 
@@ -58,6 +64,8 @@ impl Backend for AvxBackend {
                     comma: cmp1(self.comma, b0),
                     left_brace: cmp1(self.left_brace, b0),
                     right_brace: cmp1(self.right_brace, b0),
+                    left_bracket: cmp1(self.left_bracket, b0),
+                    right_bracket: cmp1(self.right_bracket, b0),
                 }
             }
             32 => {
@@ -69,6 +77,8 @@ impl Backend for AvxBackend {
                     comma: cmp1(self.comma, b0),
                     left_brace: cmp1(self.left_brace, b0),
                     right_brace: cmp1(self.right_brace, b0),
+                    left_bracket: cmp1(self.left_bracket, b0),
+                    right_bracket: cmp1(self.right_bracket, b0),
                 }
             }
             _ => {
@@ -81,6 +91,8 @@ impl Backend for AvxBackend {
                     comma: cmp2(self.comma, b0, b1),
                     left_brace: cmp2(self.left_brace, b0, b1),
                     right_brace: cmp2(self.right_brace, b0, b1),
+                    left_bracket: cmp2(self.left_bracket, b0, b1),
+                    right_bracket: cmp2(self.right_bracket, b0, b1),
                 }
             }
         }
