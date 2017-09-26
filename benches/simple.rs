@@ -78,13 +78,47 @@ fn bench_mison_avx_queried_2(b: &mut test::Bencher) {
 
 #[bench]
 #[cfg(feature = "avx-accel")]
+fn bench_mison_avx_queried_3(b: &mut test::Bencher) {
+    let mut queries = QueryTree::default();
+    queries.add_path("$.partners").unwrap();
+    let index_builder = IndexBuilder::<AvxBackend>::default();
+    let parser = QueryParser::new(queries, index_builder);
+
+    b.iter(|| {
+        let _ = parser.parse(INPUT).unwrap();
+    });
+}
+
+#[bench]
+#[cfg(feature = "avx-accel")]
 fn bench_pikkr(b: &mut test::Bencher) {
+    let mut pikkr = Pikkr::new(&["$._id.$oid"], ::std::usize::MAX).unwrap();
+
+    b.iter(|| {
+        let _ = pikkr.parse(INPUT).unwrap();
+    });
+}
+
+#[bench]
+#[cfg(feature = "avx-accel")]
+fn bench_pikkr_2(b: &mut test::Bencher) {
     let mut pikkr = Pikkr::new(&["$._id.$oid", "$.partners"], ::std::usize::MAX).unwrap();
 
     b.iter(|| {
         let _ = pikkr.parse(INPUT).unwrap();
     });
 }
+
+#[bench]
+#[cfg(feature = "avx-accel")]
+fn bench_pikkr_3(b: &mut test::Bencher) {
+    let mut pikkr = Pikkr::new(&["$.partners"], ::std::usize::MAX).unwrap();
+
+    b.iter(|| {
+        let _ = pikkr.parse(INPUT).unwrap();
+    });
+}
+
 
 #[bench]
 #[cfg(feature = "avx-accel")]
