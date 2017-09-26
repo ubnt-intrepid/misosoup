@@ -2,6 +2,7 @@
 
 pub mod backend;
 
+use std::cell::{Ref, RefCell};
 use bit;
 use errors::{Error, ErrorKind, Result, ResultExt};
 use num::Integer;
@@ -24,17 +25,17 @@ pub struct Bitmap {
 
 
 /// Structural index of a slice of bytes
-#[derive(Debug, PartialEq)]
-pub struct StructuralIndex {
+#[derive(Debug)]
+pub struct StructuralIndex<'a> {
     /// Structural character bitmaps
-    pub bitmaps: Vec<Bitmap>,
+    pub bitmaps: Ref<'a, Vec<Bitmap>>,
     /// Leveled colon bitmap
-    pub b_colon: Vec<Vec<u64>>,
+    pub b_colon: Ref<'a, Vec<Vec<u64>>>,
     /// Leveled comma bitmap
-    pub b_comma: Vec<Vec<u64>>,
+    pub b_comma: Ref<'a, Vec<Vec<u64>>>,
 }
 
-impl StructuralIndex {
+impl<'a> StructuralIndex<'a> {
     /// Calculate the position of colons at `level`, between from `begin` to `end`
     pub fn colon_positions(&self, begin: usize, end: usize, level: usize) -> Vec<usize> {
         generate_positions(&self.b_colon[level], begin, end)
@@ -56,50 +57,66 @@ impl StructuralIndex {
 #[derive(Debug, Default)]
 pub struct IndexBuilder<B: Backend> {
     backend: B,
+    bitmaps: RefCell<Vec<Bitmap>>,
+    b_colon: RefCell<Vec<Vec<u64>>>,
+    b_comma: RefCell<Vec<Vec<u64>>>,
 }
 
 impl<B: Backend> IndexBuilder<B> {
     #[allow(missing_docs)]
     pub fn new(backend: B) -> Self {
-        Self { backend }
+        Self {
+            backend,
+            bitmaps: RefCell::new(vec![]),
+            b_colon: RefCell::new(vec![]),
+            b_comma: RefCell::new(vec![]),
+        }
     }
 
     /// Build a structural index from a slice of bytes.
     pub fn build(&self, record: &[u8], level: usize) -> Result<StructuralIndex> {
-        // Step 1
-        let mut bitmaps = build_structural_character_bitmaps(record, &self.backend);
+        {
+            let mut bitmaps = self.bitmaps.borrow_mut();
+            let mut b_colon = self.b_colon.borrow_mut();
+            let mut b_comma = self.b_comma.borrow_mut();
 
-        // Step 2
-        remove_unstructural_quotes(&mut bitmaps);
+            let b_len = (record.len() + 63) / 64;
+            bitmaps.clear();
+            bitmaps.reserve(b_len);
+            *b_colon = vec![Vec::with_capacity(b_len); level];
+            *b_comma = vec![Vec::with_capacity(b_len); level];
 
-        // Step 3
-        remove_unstructural_characters(&mut bitmaps);
+            // Step 1
+            build_structural_character_bitmaps(&mut *bitmaps, record, &self.backend);
 
-        // Step 4
-        let (b_colon, b_comma) = build_leveled_bitmaps(&bitmaps, level)?;
+            // Step 2
+            remove_unstructural_quotes(&mut *bitmaps);
+
+            // Step 3
+            remove_unstructural_characters(&mut *bitmaps);
+
+            // Step 4
+            build_leveled_bitmaps(&*bitmaps, &mut *b_colon, &mut *b_comma, level)?;
+        }
 
         Ok(StructuralIndex {
-            bitmaps,
-            b_colon,
-            b_comma,
+            bitmaps: self.bitmaps.borrow(),
+            b_colon: self.b_colon.borrow(),
+            b_comma: self.b_comma.borrow(),
         })
     }
 }
 
 
 
-fn build_structural_character_bitmaps<B: Backend>(s: &[u8], backend: &B) -> Vec<Bitmap> {
-    let mut result = Vec::with_capacity((s.len() + 63) / 64);
-
+fn build_structural_character_bitmaps<B: Backend>(bitmaps: &mut Vec<Bitmap>, s: &[u8], backend: &B) {
     for i in 0..(s.len() / 64) {
-        result.push(backend.create_full_bitmap(s, i * 64));
+        bitmaps.push(backend.create_full_bitmap(s, i * 64));
     }
 
     if s.len() % 64 != 0 {
-        result.push(backend.create_partial_bitmap(s, (s.len() / 64) * 64));
+        bitmaps.push(backend.create_partial_bitmap(s, (s.len() / 64) * 64));
     }
-
-    result
 }
 
 fn remove_unstructural_quotes(bitmaps: &mut [Bitmap]) {
@@ -181,9 +198,7 @@ fn remove_unstructural_characters(bitmaps: &mut [Bitmap]) {
     debug_assert!(n.is_even());
 }
 
-fn build_leveled_bitmaps(bitmaps: &[Bitmap], level: usize) -> Result<(Vec<Vec<u64>>, Vec<Vec<u64>>)> {
-    let mut b_colon = vec![Vec::with_capacity(bitmaps.len()); level];
-    let mut b_comma = vec![Vec::with_capacity(bitmaps.len()); level];
+fn build_leveled_bitmaps(bitmaps: &[Bitmap], b_colon: &mut Vec<Vec<u64>>, b_comma: &mut Vec<Vec<u64>>, level: usize) -> Result<()> {
     for i in 0..level {
         b_colon[i].extend(bitmaps.iter().map(|b| b.colon));
         b_comma[i].extend(bitmaps.iter().map(|b| b.comma));
@@ -246,7 +261,7 @@ fn build_leveled_bitmaps(bitmaps: &[Bitmap], level: usize) -> Result<(Vec<Vec<u6
         }
     }
 
-    Ok((b_colon, b_comma))
+    Ok(())
 }
 
 fn generate_positions(bitmap: &[u64], begin: usize, end: usize) -> Vec<usize> {
@@ -300,136 +315,130 @@ mod tests {
         struct TestCase {
             input: &'static [u8],
             level: usize,
-            expected: StructuralIndex,
+            bitmaps: Vec<Bitmap>,
+            b_colon: Vec<Vec<u64>>,
+            b_comma: Vec<Vec<u64>>,
         }
         let cases = vec![
             TestCase {
                 input: b"{}",
                 level: 1,
-                expected: StructuralIndex {
-                    bitmaps: vec![
-                        Bitmap {
-                            backslash: 0,
-                            quote: 0,
-                            colon: 0,
-                            comma: 0,
-                            left_brace: 0b0000_0001,
-                            right_brace: 0b0000_0010,
-                            left_bracket: 0,
-                            right_bracket: 0,
-                        },
-                    ],
-                    b_colon: vec![vec![0]],
-                    b_comma: vec![vec![0]],
-                },
+                bitmaps: vec![
+                    Bitmap {
+                        backslash: 0,
+                        quote: 0,
+                        colon: 0,
+                        comma: 0,
+                        left_brace: 0b0000_0001,
+                        right_brace: 0b0000_0010,
+                        left_bracket: 0,
+                        right_bracket: 0,
+                    },
+                ],
+                b_colon: vec![vec![0]],
+                b_comma: vec![vec![0]],
             },
             TestCase {
                 input: r#"{"x\"y\\":10}"#.as_bytes(),
                 level: 1,
-                expected: StructuralIndex {
-                    bitmaps: vec![
-                        Bitmap {
-                            backslash: 0b_0000_0000_1100_1000,
-                            quote: 0b_0000_0001_0000_0010,
-                            colon: 0b_0000_0010_0000_0000,
-                            comma: 0,
-                            left_brace: 0b_0000_0000_0000_0001,
-                            right_brace: 0b_0001_0000_0000_0000,
-                            left_bracket: 0,
-                            right_bracket: 0,
-                        },
-                    ],
-                    b_colon: vec![vec![0b_0000_0010_0000_0000]],
-                    b_comma: vec![vec![0b_0000_0000_0000_0000]],
-                },
+                bitmaps: vec![
+                    Bitmap {
+                        backslash: 0b_0000_0000_1100_1000,
+                        quote: 0b_0000_0001_0000_0010,
+                        colon: 0b_0000_0010_0000_0000,
+                        comma: 0,
+                        left_brace: 0b_0000_0000_0000_0001,
+                        right_brace: 0b_0001_0000_0000_0000,
+                        left_bracket: 0,
+                        right_bracket: 0,
+                    },
+                ],
+                b_colon: vec![vec![0b_0000_0010_0000_0000]],
+                b_comma: vec![vec![0b_0000_0000_0000_0000]],
             },
             TestCase {
                 input: r#"{ "f1":"a", "f2":{ "e1": true, "e2": "::a" }, "f3":"\"foo\\" }"#.as_bytes(),
                 level: 2,
-                expected: StructuralIndex {
-                    bitmaps: vec![
-                        Bitmap {
-                            backslash: 0b_0000_0110_0001_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000,
-                            quote: 0b_0000_1000_0000_1010_0100_0010_0010_0100_1000_0000_0100_1000_1001_0010_1010_0100,
-                            colon: 0b_0000_0000_0000_0100_0000_0000_0000_1000_0000_0000_1000_0001_0000_0000_0100_0000,
-                            comma: 0b_0000_0000_0000_0000_0001_0000_0000_0000_0010_0000_0000_0000_0000_0100_0000_0000,
-                            left_brace: 0b_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0010_0000_0000_0000_0001,
-                            right_brace: 0b_0010_0000_0000_0000_0000_1000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000,
-                            left_bracket: 0,
-                            right_bracket: 0,
-                        },
+                bitmaps: vec![
+                    Bitmap {
+                        backslash: 0b_0000_0110_0001_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000,
+                        quote: 0b_0000_1000_0000_1010_0100_0010_0010_0100_1000_0000_0100_1000_1001_0010_1010_0100,
+                        colon: 0b_0000_0000_0000_0100_0000_0000_0000_1000_0000_0000_1000_0001_0000_0000_0100_0000,
+                        comma: 0b_0000_0000_0000_0000_0001_0000_0000_0000_0010_0000_0000_0000_0000_0100_0000_0000,
+                        left_brace: 0b_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0010_0000_0000_0000_0001,
+                        right_brace: 0b_0010_0000_0000_0000_0000_1000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000,
+                        left_bracket: 0,
+                        right_bracket: 0,
+                    },
+                ],
+                b_colon: vec![
+                    vec![
+                        0b_0000_0000_0000_0100_0000_0000_0000_0000_0000_0000_0000_0001_0000_0000_0100_0000,
                     ],
-                    b_colon: vec![
-                        vec![
-                            0b_0000_0000_0000_0100_0000_0000_0000_0000_0000_0000_0000_0001_0000_0000_0100_0000,
-                        ],
-                        vec![
-                            0b_0000_0000_0000_0100_0000_0000_0000_1000_0000_0000_1000_0001_0000_0000_0100_0000,
-                        ],
+                    vec![
+                        0b_0000_0000_0000_0100_0000_0000_0000_1000_0000_0000_1000_0001_0000_0000_0100_0000,
                     ],
-                    b_comma: vec![
-                        vec![
-                            0b_0000_0000_0000_0000_0001_0000_0000_0000_0000_0000_0000_0000_0000_0100_0000_0000,
-                        ],
-                        vec![
-                            0b_0000_0000_0000_0000_0001_0000_0000_0000_0010_0000_0000_0000_0000_0100_0000_0000,
-                        ],
+                ],
+                b_comma: vec![
+                    vec![
+                        0b_0000_0000_0000_0000_0001_0000_0000_0000_0000_0000_0000_0000_0000_0100_0000_0000,
                     ],
-                },
+                    vec![
+                        0b_0000_0000_0000_0000_0001_0000_0000_0000_0010_0000_0000_0000_0000_0100_0000_0000,
+                    ],
+                ],
             },
             TestCase {
                 input: r#"{ "f1": { "e1": { "d1": true } } }"#.as_bytes(),
                 level: 3,
-                expected: StructuralIndex {
-                    bitmaps: vec![
-                        Bitmap {
-                            backslash: 0,
-                            quote: 2368548,
-                            colon: 4210752,
-                            comma: 0,
-                            left_brace: 65793,
-                            right_brace: 11274289152,
-                            left_bracket: 0,
-                            right_bracket: 0,
-                        },
-                    ],
-                    b_colon: vec![vec![64], vec![16448], vec![4210752]],
-                    b_comma: vec![vec![0], vec![0], vec![0]],
-                },
+                bitmaps: vec![
+                    Bitmap {
+                        backslash: 0,
+                        quote: 2368548,
+                        colon: 4210752,
+                        comma: 0,
+                        left_brace: 65793,
+                        right_brace: 11274289152,
+                        left_bracket: 0,
+                        right_bracket: 0,
+                    },
+                ],
+                b_colon: vec![vec![64], vec![16448], vec![4210752]],
+                b_comma: vec![vec![0], vec![0], vec![0]],
             },
             TestCase {
                 input: br#"{ "a": [0, 1, 2] }"#,
                 level: 2,
-                expected: StructuralIndex {
-                    bitmaps: vec![
-                        Bitmap {
-                            backslash: 0,
-                            quote: 20,
-                            colon: 32,
-                            comma: 4608,
-                            left_brace: 1,
-                            right_brace: 131072,
-                            left_bracket: 128,
-                            right_bracket: 32768,
-                        },
-                    ],
-                    //    }_ ]2_, 1_,0 [_:" a"_{
-                    b_colon: vec![
-                        vec![0b_0000_0000_0000_0010_0000],
-                        vec![0b_0000_0000_0000_0010_0000],
-                    ],
-                    b_comma: vec![
-                        vec![0b_0000_0000_0000_0000_0000],
-                        vec![0b_0000_0001_0010_0000_0000],
-                    ],
-                },
+                bitmaps: vec![
+                    Bitmap {
+                        backslash: 0,
+                        quote: 20,
+                        colon: 32,
+                        comma: 4608,
+                        left_brace: 1,
+                        right_brace: 131072,
+                        left_bracket: 128,
+                        right_bracket: 32768,
+                    },
+                ],
+                //    }_ ]2_, 1_,0 [_:" a"_{
+                b_colon: vec![
+                    vec![0b_0000_0000_0000_0010_0000],
+                    vec![0b_0000_0000_0000_0010_0000],
+                ],
+                b_comma: vec![
+                    vec![0b_0000_0000_0000_0000_0000],
+                    vec![0b_0000_0001_0010_0000_0000],
+                ],
             },
         ];
 
         let index_builder = IndexBuilder::<FallbackBackend>::default();
         for t in cases {
             let actual = index_builder.build(t.input, t.level).unwrap();
-            assert_eq!(t.expected, actual);
+            assert_eq!(t.bitmaps, *actual.bitmaps);
+            assert_eq!(t.b_colon, *actual.b_colon);
+            assert_eq!(t.b_comma, *actual.b_comma);
         }
     }
 }
