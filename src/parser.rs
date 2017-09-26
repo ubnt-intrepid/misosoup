@@ -48,6 +48,7 @@ impl<B: Backend> Parser<B> {
                 vei -= 1;
             }
             let (vsi, vei) = trimmed(record, vsi, vei);
+            println!("[debug] value = {:?}", &record[vsi..vei]);
             let value = self.parse_impl(record, vsi, vei, level + 1, index)?;
 
             result.push(value);

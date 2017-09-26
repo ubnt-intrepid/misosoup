@@ -93,12 +93,12 @@ pub fn parse<'a>(s: &'a str, begin: usize, end: usize) -> Result<ValueType<'a>> 
         "null" => Ok(ValueType::Atomic(Value::Null)),
         "true" => Ok(ValueType::Atomic(Value::Boolean(true))),
         "false" => Ok(ValueType::Atomic(Value::Boolean(false))),
-        s if s.starts_with("\"") => {
+        s if s.starts_with("\"") && s.ends_with("\"") && s.len() > 1 => {
             // FIXME: check if s is a valid UTF-8 string
             Ok(ValueType::Atomic(Value::String(s[1..s.len() - 1].into())))
         }
-        s if s.starts_with("[") => Ok(ValueType::Array),
-        s if s.starts_with("{") => Ok(ValueType::Object),
+        s if s.starts_with("[") && s.ends_with("]") => Ok(ValueType::Array),
+        s if s.starts_with("{") && s.ends_with("}") => Ok(ValueType::Object),
         s => if let Ok(n) = s.parse::<f64>() {
             Ok(ValueType::Atomic(Value::Number(n)))
         } else {

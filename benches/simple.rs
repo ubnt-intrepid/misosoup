@@ -27,6 +27,16 @@ fn bench_serde_json(b: &mut test::Bencher) {
 }
 
 #[bench]
+fn bench_mison_fallback(b: &mut test::Bencher) {
+    let index_builder = IndexBuilder::<FallbackBackend>::default();
+    let parser = Parser::new(index_builder, 3);
+
+    b.iter(|| {
+        let _ = parser.parse(INPUT).unwrap();
+    });
+}
+
+#[bench]
 #[cfg(feature = "avx-accel")]
 fn bench_mison_avx(b: &mut test::Bencher) {
     let index_builder = IndexBuilder::<AvxBackend>::default();
