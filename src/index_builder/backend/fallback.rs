@@ -10,6 +10,8 @@ pub struct FallbackBackend {
     comma: m256i,
     left_brace: m256i,
     right_brace: m256i,
+    left_bracket: m256i,
+    right_bracket: m256i,
 }
 
 impl Default for FallbackBackend {
@@ -21,6 +23,8 @@ impl Default for FallbackBackend {
             comma: m256i::splat(b','),
             left_brace: m256i::splat(b'{'),
             right_brace: m256i::splat(b'}'),
+            left_bracket: m256i::splat(b'['),
+            right_bracket: m256i::splat(b']'),
         }
     }
 }
@@ -36,6 +40,8 @@ impl Backend for FallbackBackend {
             comma: cmp2(self.comma, b0, b1),
             left_brace: cmp2(self.left_brace, b0, b1),
             right_brace: cmp2(self.right_brace, b0, b1),
+            left_bracket: cmp2(self.left_bracket, b0, b1),
+            right_bracket: cmp2(self.right_bracket, b0, b1),
         }
     }
 
@@ -50,6 +56,8 @@ impl Backend for FallbackBackend {
                     comma: cmp1(self.comma, b0),
                     left_brace: cmp1(self.left_brace, b0),
                     right_brace: cmp1(self.right_brace, b0),
+                    left_bracket: cmp1(self.left_bracket, b0),
+                    right_bracket: cmp1(self.right_bracket, b0),
                 }
             }
             32 => {
@@ -61,6 +69,8 @@ impl Backend for FallbackBackend {
                     comma: cmp1(self.comma, b0),
                     left_brace: cmp1(self.left_brace, b0),
                     right_brace: cmp1(self.right_brace, b0),
+                    left_bracket: cmp1(self.left_bracket, b0),
+                    right_bracket: cmp1(self.right_bracket, b0),
                 }
             }
             _ => {
@@ -73,6 +83,8 @@ impl Backend for FallbackBackend {
                     comma: cmp2(self.comma, b0, b1),
                     left_brace: cmp2(self.left_brace, b0, b1),
                     right_brace: cmp2(self.right_brace, b0, b1),
+                    left_bracket: cmp2(self.left_bracket, b0, b1),
+                    right_bracket: cmp2(self.right_bracket, b0, b1),
                 }
             }
         }

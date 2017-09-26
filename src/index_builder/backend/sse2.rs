@@ -12,6 +12,8 @@ pub struct Sse2Backend {
     comma: u8x16,
     left_brace: u8x16,
     right_brace: u8x16,
+    left_bracket: u8x16,
+    right_bracket: u8x16,
 }
 
 impl Default for Sse2Backend {
@@ -23,6 +25,8 @@ impl Default for Sse2Backend {
             comma: u8x16::splat(b','),
             left_brace: u8x16::splat(b'{'),
             right_brace: u8x16::splat(b'}'),
+            left_bracket: u8x16::splat(b'['),
+            right_bracket: u8x16::splat(b']'),
         }
     }
 }
@@ -40,6 +44,8 @@ impl Backend for Sse2Backend {
             comma: cmp4(self.comma, b0, b1, b2, b3),
             left_brace: cmp4(self.left_brace, b0, b1, b2, b3),
             right_brace: cmp4(self.right_brace, b0, b1, b2, b3),
+            left_bracket: cmp4(self.left_bracket, b0, b1, b2, b3),
+            right_bracket: cmp4(self.right_bracket, b0, b1, b2, b3),
         }
     }
 
@@ -54,6 +60,8 @@ impl Backend for Sse2Backend {
                     comma: cmp1(self.comma, b0),
                     left_brace: cmp1(self.left_brace, b0),
                     right_brace: cmp1(self.right_brace, b0),
+                    left_bracket: cmp1(self.left_bracket, b0),
+                    right_bracket: cmp1(self.right_bracket, b0),
                 }
             }
             16 => {
@@ -65,6 +73,8 @@ impl Backend for Sse2Backend {
                     comma: cmp1(self.comma, b0),
                     left_brace: cmp1(self.left_brace, b0),
                     right_brace: cmp1(self.right_brace, b0),
+                    left_bracket: cmp1(self.left_bracket, b0),
+                    right_bracket: cmp1(self.right_bracket, b0),
                 }
             }
             x if x < 32 => {
@@ -77,6 +87,8 @@ impl Backend for Sse2Backend {
                     comma: cmp2(self.comma, b0, b1),
                     left_brace: cmp2(self.left_brace, b0, b1),
                     right_brace: cmp2(self.right_brace, b0, b1),
+                    left_bracket: cmp2(self.left_bracket, b0, b1),
+                    right_bracket: cmp2(self.right_bracket, b0, b1),
                 }
             }
             32 => {
@@ -89,6 +101,8 @@ impl Backend for Sse2Backend {
                     comma: cmp2(self.comma, b0, b1),
                     left_brace: cmp2(self.left_brace, b0, b1),
                     right_brace: cmp2(self.right_brace, b0, b1),
+                    left_bracket: cmp2(self.left_bracket, b0, b1),
+                    right_bracket: cmp2(self.right_bracket, b0, b1),
                 }
             }
             x if x < 48 => {
@@ -102,6 +116,8 @@ impl Backend for Sse2Backend {
                     comma: cmp3(self.comma, b0, b1, b2),
                     left_brace: cmp3(self.left_brace, b0, b1, b2),
                     right_brace: cmp3(self.right_brace, b0, b1, b2),
+                    left_bracket: cmp3(self.left_bracket, b0, b1, b2),
+                    right_bracket: cmp3(self.right_bracket, b0, b1, b2),
                 }
             }
             48 => {
@@ -115,6 +131,8 @@ impl Backend for Sse2Backend {
                     comma: cmp3(self.comma, b0, b1, b2),
                     left_brace: cmp3(self.left_brace, b0, b1, b2),
                     right_brace: cmp3(self.right_brace, b0, b1, b2),
+                    left_bracket: cmp3(self.left_bracket, b0, b1, b2),
+                    right_bracket: cmp3(self.right_bracket, b0, b1, b2),
                 }
             }
             _ => {
@@ -129,6 +147,8 @@ impl Backend for Sse2Backend {
                     comma: cmp4(self.comma, b0, b1, b2, b3),
                     left_brace: cmp4(self.left_brace, b0, b1, b2, b3),
                     right_brace: cmp4(self.right_brace, b0, b1, b2, b3),
+                    left_bracket: cmp4(self.left_bracket, b0, b1, b2, b3),
+                    right_bracket: cmp4(self.right_bracket, b0, b1, b2, b3),
                 }
             }
         }

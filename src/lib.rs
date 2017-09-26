@@ -16,6 +16,7 @@ extern crate stdsimd;
 #[macro_use]
 extern crate maplit;
 
+pub mod value;
 pub mod bit;
 pub mod errors;
 pub mod index_builder;

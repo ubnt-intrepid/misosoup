@@ -5,8 +5,7 @@ extern crate pikkr;
 extern crate serde_json;
 extern crate test;
 
-use mison::query::QueryTree;
-use mison::parser::{Parser, QueryParser};
+use mison::parser::Parser;
 use mison::index_builder::IndexBuilder;
 use mison::index_builder::backend::FallbackBackend;
 #[cfg(feature = "simd-accel")]
@@ -51,43 +50,54 @@ fn bench_mison_avx_2(b: &mut test::Bencher) {
 
 #[bench]
 #[cfg(feature = "avx-accel")]
-fn bench_mison_avx_queried(b: &mut test::Bencher) {
-    let mut queries = QueryTree::default();
-    queries.add_path("$._id.$oid").unwrap();
+fn bench_mison_avx_3(b: &mut test::Bencher) {
     let index_builder = IndexBuilder::<AvxBackend>::default();
-    let parser = QueryParser::new(queries, index_builder);
+    let parser = Parser::new(index_builder, 20);
 
     b.iter(|| {
         let _ = parser.parse(INPUT).unwrap();
     });
 }
 
-#[bench]
-#[cfg(feature = "avx-accel")]
-fn bench_mison_avx_queried_2(b: &mut test::Bencher) {
-    let mut queries = QueryTree::default();
-    queries.add_path("$._id.$oid").unwrap();
-    queries.add_path("$.partners").unwrap();
-    let index_builder = IndexBuilder::<AvxBackend>::default();
-    let parser = QueryParser::new(queries, index_builder);
-
-    b.iter(|| {
-        let _ = parser.parse(INPUT).unwrap();
-    });
-}
-
-#[bench]
-#[cfg(feature = "avx-accel")]
-fn bench_mison_avx_queried_3(b: &mut test::Bencher) {
-    let mut queries = QueryTree::default();
-    queries.add_path("$.partners").unwrap();
-    let index_builder = IndexBuilder::<AvxBackend>::default();
-    let parser = QueryParser::new(queries, index_builder);
-
-    b.iter(|| {
-        let _ = parser.parse(INPUT).unwrap();
-    });
-}
+// #[bench]
+// #[cfg(feature = "avx-accel")]
+// fn bench_mison_avx_queried(b: &mut test::Bencher) {
+//     let mut queries = QueryTree::default();
+//     queries.add_path("$._id.$oid").unwrap();
+//     let index_builder = IndexBuilder::<AvxBackend>::default();
+//     let parser = QueryParser::new(queries, index_builder);
+//
+//     b.iter(|| {
+//         let _ = parser.parse(INPUT).unwrap();
+//     });
+// }
+//
+// #[bench]
+// #[cfg(feature = "avx-accel")]
+// fn bench_mison_avx_queried_2(b: &mut test::Bencher) {
+//     let mut queries = QueryTree::default();
+//     queries.add_path("$._id.$oid").unwrap();
+//     queries.add_path("$.partners").unwrap();
+//     let index_builder = IndexBuilder::<AvxBackend>::default();
+//     let parser = QueryParser::new(queries, index_builder);
+//
+//     b.iter(|| {
+//         let _ = parser.parse(INPUT).unwrap();
+//     });
+// }
+//
+// #[bench]
+// #[cfg(feature = "avx-accel")]
+// fn bench_mison_avx_queried_3(b: &mut test::Bencher) {
+//     let mut queries = QueryTree::default();
+//     queries.add_path("$.partners").unwrap();
+//     let index_builder = IndexBuilder::<AvxBackend>::default();
+//     let parser = QueryParser::new(queries, index_builder);
+//
+//     b.iter(|| {
+//         let _ = parser.parse(INPUT).unwrap();
+//     });
+// }
 
 #[bench]
 #[cfg(feature = "avx-accel")]
@@ -168,5 +178,15 @@ fn bench_mison_index_builder_avx_2(b: &mut test::Bencher) {
 
     b.iter(|| {
         let _ = index_builder.build(INPUT.as_bytes(), 1).unwrap();
+    });
+}
+
+#[bench]
+#[cfg(feature = "avx-accel")]
+fn bench_mison_index_builder_avx_3(b: &mut test::Bencher) {
+    let index_builder = IndexBuilder::<AvxBackend>::default();
+
+    b.iter(|| {
+        let _ = index_builder.build(INPUT.as_bytes(), 25).unwrap();
     });
 }
