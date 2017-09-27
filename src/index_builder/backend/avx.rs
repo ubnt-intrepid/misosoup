@@ -1,5 +1,5 @@
 use stdsimd::simd::{i8x32, u8x32};
-use super::super::{Backend, Bitmap};
+use super::{Backend, Bitmap};
 
 #[allow(improper_ctypes)]
 extern "C" {

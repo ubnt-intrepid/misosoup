@@ -1,6 +1,6 @@
 use stdsimd::simd::u8x16;
 use stdsimd::vendor::_mm_movemask_epi8;
-use super::super::{Backend, Bitmap};
+use super::{Backend, Bitmap};
 
 
 #[allow(missing_docs)]
