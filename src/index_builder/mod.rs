@@ -37,13 +37,21 @@ pub struct StructuralIndex<'a> {
 
 impl<'a> StructuralIndex<'a> {
     /// Calculate the position of colons at `level`, between from `begin` to `end`
-    pub fn colon_positions(&self, begin: usize, end: usize, level: usize) -> Vec<usize> {
-        generate_positions(&self.b_colon[level], begin, end)
+    pub fn colon_positions(&self, begin: usize, end: usize, level: usize) -> Option<Vec<usize>> {
+        if level < self.b_colon.len() {
+            Some(generate_positions(&self.b_colon[level], begin, end))
+        } else {
+            None
+        }
     }
 
     /// Calculate the position of colons at `level`, between from `begin` to `end`
-    pub fn comma_positions(&self, begin: usize, end: usize, level: usize) -> Vec<usize> {
-        generate_positions(&self.b_comma[level], begin, end)
+    pub fn comma_positions(&self, begin: usize, end: usize, level: usize) -> Option<Vec<usize>> {
+        if level < self.b_comma.len() {
+            Some(generate_positions(&self.b_comma[level], begin, end))
+        } else {
+            None
+        }
     }
 
     #[allow(missing_docs)]
@@ -60,21 +68,23 @@ pub struct IndexBuilder<B: Backend> {
     bitmaps: RefCell<Vec<Bitmap>>,
     b_colon: RefCell<Vec<Vec<u64>>>,
     b_comma: RefCell<Vec<Vec<u64>>>,
+    level: usize,
 }
 
 impl<B: Backend> IndexBuilder<B> {
     #[allow(missing_docs)]
-    pub fn new(backend: B) -> Self {
+    pub fn new(backend: B, level: usize) -> Self {
         Self {
             backend,
             bitmaps: RefCell::new(vec![]),
-            b_colon: RefCell::new(vec![]),
-            b_comma: RefCell::new(vec![]),
+            b_colon: RefCell::new(vec![vec![]; level]),
+            b_comma: RefCell::new(vec![vec![]; level]),
+            level,
         }
     }
 
     /// Build a structural index from a slice of bytes.
-    pub fn build(&self, record: &[u8], level: usize) -> Result<StructuralIndex> {
+    pub fn build(&self, record: &[u8]) -> Result<StructuralIndex> {
         {
             let mut bitmaps = self.bitmaps.borrow_mut();
             let mut b_colon = self.b_colon.borrow_mut();
@@ -83,8 +93,12 @@ impl<B: Backend> IndexBuilder<B> {
             let b_len = (record.len() + 63) / 64;
             bitmaps.clear();
             bitmaps.reserve(b_len);
-            *b_colon = vec![Vec::with_capacity(b_len); level];
-            *b_comma = vec![Vec::with_capacity(b_len); level];
+            for (colon, comma) in izip!(&mut *b_colon, &mut *b_comma) {
+                colon.clear();
+                comma.clear();
+                colon.reserve(b_len);
+                comma.reserve(b_len);
+            }
 
             // Step 1
             build_structural_character_bitmaps(&mut *bitmaps, record, &self.backend);
@@ -96,7 +110,7 @@ impl<B: Backend> IndexBuilder<B> {
             remove_unstructural_characters(&mut *bitmaps);
 
             // Step 4
-            build_leveled_bitmaps(&*bitmaps, &mut *b_colon, &mut *b_comma, level)?;
+            build_leveled_bitmaps(&*bitmaps, &mut *b_colon, &mut *b_comma, self.level)?;
         }
 
         Ok(StructuralIndex {
@@ -433,9 +447,9 @@ mod tests {
             },
         ];
 
-        let index_builder = IndexBuilder::<FallbackBackend>::default();
         for t in cases {
-            let actual = index_builder.build(t.input, t.level).unwrap();
+            let index_builder = IndexBuilder::<FallbackBackend>::new(Default::default(), t.level);
+            let actual = index_builder.build(t.input).unwrap();
             assert_eq!(t.bitmaps, *actual.bitmaps);
             assert_eq!(t.b_colon, *actual.b_colon);
             assert_eq!(t.b_comma, *actual.b_comma);
