@@ -7,6 +7,7 @@ authors = ["Yusuke Sasaki <y_sasaki@nuem.nagoya-u.ac.jp>"]
 num = "*"
 error-chain = "*"
 itertools = "*"
+smallvec = "*"
 stdsimd = { version = "*", optional = true }
 
 [dev-dependencies]

@@ -1,9 +1,12 @@
 use std::cell::Ref;
+use smallvec::SmallVec;
 use bit;
 use errors::{ErrorKind, Result, ResultExt};
 
 use super::builder::Inner;
 use super::backend::Bitmap;
+
+const POSITIONS_BUF_LENTGH: usize = 16;
 
 
 /// Structural index of a slice of bytes
@@ -14,7 +17,12 @@ pub struct StructuralIndex<'a> {
 
 impl<'a> StructuralIndex<'a> {
     /// Calculate the position of colons at `level`, between from `begin` to `end`
-    pub fn colon_positions(&self, begin: usize, end: usize, level: usize) -> Option<Vec<usize>> {
+    pub fn colon_positions(
+        &self,
+        begin: usize,
+        end: usize,
+        level: usize,
+    ) -> Option<SmallVec<[usize; POSITIONS_BUF_LENTGH]>> {
         if level < self.inner.b_colon.len() {
             Some(generate_positions(&self.inner.b_colon[level], begin, end))
         } else {
@@ -23,7 +31,12 @@ impl<'a> StructuralIndex<'a> {
     }
 
     /// Calculate the position of colons at `level`, between from `begin` to `end`
-    pub fn comma_positions(&self, begin: usize, end: usize, level: usize) -> Option<Vec<usize>> {
+    pub fn comma_positions(
+        &self,
+        begin: usize,
+        end: usize,
+        level: usize,
+    ) -> Option<SmallVec<[usize; POSITIONS_BUF_LENTGH]>> {
         if level < self.inner.b_comma.len() {
             Some(generate_positions(&self.inner.b_comma[level], begin, end))
         } else {
@@ -40,8 +53,8 @@ impl<'a> StructuralIndex<'a> {
 }
 
 
-fn generate_positions(bitmap: &[u64], begin: usize, end: usize) -> Vec<usize> {
-    let mut cp = Vec::new();
+fn generate_positions(bitmap: &[u64], begin: usize, end: usize) -> SmallVec<[usize; POSITIONS_BUF_LENTGH]> {
+    let mut cp = SmallVec::new();
 
     for i in begin / 64..(end - 1 + 63) / 64 {
         let mut m_bits = bitmap[i];

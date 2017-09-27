@@ -31,11 +31,14 @@ impl<B: Backend> Parser<B> {
         level: usize,
     ) -> Result<Value<'s>> {
         let cp = match index.comma_positions(begin, end, level) {
-            Some(cp) => cp,
+            Some(mut cp) => {
+                cp.push(end - 1); // dummy
+                cp
+            }
             None => return Ok(Value::raw(&record[begin..end])),
         };
 
-        let mut result = Vec::new();
+        let mut result = Vec::with_capacity(cp.len());
 
         for i in 0..cp.len() {
             let (vsi, vei) = trimmed(
@@ -43,17 +46,10 @@ impl<B: Backend> Parser<B> {
                 if i == 0 { begin + 1 } else { cp[i - 1] + 1 },
                 cp[i],
             );
-            let value = self.parse_impl(record, vsi, vei, level + 1, index)?;
-
-            result.push(value);
-        }
-
-        if !cp.is_empty() {
-            let (vsi, mut vei) = trimmed(record, cp[cp.len() - 1] + 1, end);
-            while vei > vsi && record.as_bytes()[vei - 1] == b']' {
-                vei -= 1;
+            if i == 0 && vsi == vei {
+                break;
             }
-            let (vsi, vei) = trimmed(record, vsi, vei);
+
             let value = self.parse_impl(record, vsi, vei, level + 1, index)?;
 
             result.push(value);
@@ -75,7 +71,7 @@ impl<B: Backend> Parser<B> {
             None => return Ok(Value::raw(&record[begin..end])),
         };
 
-        let mut result = Vec::new();
+        let mut result = Vec::with_capacity(cp.len());
 
         for i in (0..cp.len()).rev() {
             let (field, fsi) = index.find_field(record, if i == 0 { begin } else { cp[i - 1] }, cp[i])?;

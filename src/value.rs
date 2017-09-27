@@ -5,7 +5,7 @@ use std::borrow::Cow;
 use errors::{Error, ErrorKind, Result, ResultExt};
 
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct EscapedStr<'a>(Cow<'a, str>);
 
 impl<'a> From<&'a str> for EscapedStr<'a> {
@@ -30,6 +30,8 @@ impl<'a> From<Cow<'a, str>> for EscapedStr<'a> {
 }
 
 
+pub type LinearMap<K, V> = Vec<(K, V)>;
+
 #[derive(Debug, Clone)]
 #[cfg_attr(test, derive(PartialEq))]
 pub enum Value<'a> {
@@ -38,7 +40,7 @@ pub enum Value<'a> {
     Number(f64),
     String(EscapedStr<'a>),
     Array(Vec<Value<'a>>),
-    Object(Vec<(EscapedStr<'a>, Value<'a>)>),
+    Object(LinearMap<EscapedStr<'a>, Value<'a>>),
     Raw(Cow<'a, str>),
 }
 
@@ -111,11 +113,11 @@ pub fn parse<'a>(record: &'a str, begin: usize, end: usize) -> Result<ValueType<
 #[macro_export]
 macro_rules! object {
     ($( $f:expr => $v:expr,)+ ) => {{
-        Value::Object(vec![
-            $(
-                (From::from($f), From::from($v)),
-            )*
-        ])
+        let mut h = Vec::new();
+        $(
+            h.push((From::from($f), From::from($v)));
+        )*
+        Value::Object(h)
     }}
 }
 

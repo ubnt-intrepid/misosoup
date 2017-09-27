@@ -8,6 +8,7 @@
 #[macro_use]
 extern crate error_chain;
 extern crate num;
+extern crate smallvec;
 
 #[cfg(all(any(feature = "simd-accel", feature = "avx-accel"), target_arch = "x86_64"))]
 extern crate stdsimd;
