@@ -6,6 +6,7 @@ authors = ["Yusuke Sasaki <y_sasaki@nuem.nagoya-u.ac.jp>"]
 [dependencies]
 num = "*"
 error-chain = "*"
+itertools = "*"
 stdsimd = { version = "*", optional = true }
 
 [dev-dependencies]

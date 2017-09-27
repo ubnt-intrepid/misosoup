@@ -27,10 +27,20 @@ fn bench_serde_json(b: &mut test::Bencher) {
 }
 
 #[bench]
+fn bench_mison_fallback(b: &mut test::Bencher) {
+    let index_builder = IndexBuilder::new(FallbackBackend::default(), 3);
+    let parser = Parser::new(index_builder);
+
+    b.iter(|| {
+        let _ = parser.parse(INPUT).unwrap();
+    });
+}
+
+#[bench]
 #[cfg(feature = "avx-accel")]
 fn bench_mison_avx(b: &mut test::Bencher) {
-    let index_builder = IndexBuilder::<AvxBackend>::default();
-    let parser = Parser::new(index_builder, 3);
+    let index_builder = IndexBuilder::new(AvxBackend::default(), 3);
+    let parser = Parser::new(index_builder);
 
     b.iter(|| {
         let _ = parser.parse(INPUT).unwrap();
@@ -40,8 +50,8 @@ fn bench_mison_avx(b: &mut test::Bencher) {
 #[bench]
 #[cfg(feature = "avx-accel")]
 fn bench_mison_avx_2(b: &mut test::Bencher) {
-    let index_builder = IndexBuilder::<AvxBackend>::default();
-    let parser = Parser::new(index_builder, 1);
+    let index_builder = IndexBuilder::new(AvxBackend::default(), 1);
+    let parser = Parser::new(index_builder);
 
     b.iter(|| {
         let _ = parser.parse(INPUT).unwrap();
@@ -51,8 +61,8 @@ fn bench_mison_avx_2(b: &mut test::Bencher) {
 #[bench]
 #[cfg(feature = "avx-accel")]
 fn bench_mison_avx_3(b: &mut test::Bencher) {
-    let index_builder = IndexBuilder::<AvxBackend>::default();
-    let parser = Parser::new(index_builder, 20);
+    let index_builder = IndexBuilder::new(AvxBackend::default(), 20);
+    let parser = Parser::new(index_builder);
 
     b.iter(|| {
         let _ = parser.parse(INPUT).unwrap();
@@ -144,49 +154,49 @@ fn bench_pikkr_index_builder(b: &mut test::Bencher) {
 
 #[bench]
 fn bench_mison_index_builder_fallback(b: &mut test::Bencher) {
-    let index_builder = IndexBuilder::<FallbackBackend>::default();
+    let index_builder = IndexBuilder::new(FallbackBackend::default(), 3);
 
     b.iter(|| {
-        let _ = index_builder.build(INPUT.as_bytes(), 3).unwrap();
+        let _ = index_builder.build(INPUT.as_bytes()).unwrap();
     });
 }
 
 #[bench]
 #[cfg(feature = "simd-accel")]
 fn bench_mison_index_builder_sse2(b: &mut test::Bencher) {
-    let index_builder = IndexBuilder::<Sse2Backend>::default();
+    let index_builder = IndexBuilder::new(Sse2Backend::default(), 3);
 
     b.iter(|| {
-        let _ = index_builder.build(INPUT.as_bytes(), 3).unwrap();
+        let _ = index_builder.build(INPUT.as_bytes()).unwrap();
     });
 }
 
 #[bench]
 #[cfg(feature = "avx-accel")]
 fn bench_mison_index_builder_avx(b: &mut test::Bencher) {
-    let index_builder = IndexBuilder::<AvxBackend>::default();
+    let index_builder = IndexBuilder::new(AvxBackend::default(), 3);
 
     b.iter(|| {
-        let _ = index_builder.build(INPUT.as_bytes(), 3).unwrap();
+        let _ = index_builder.build(INPUT.as_bytes()).unwrap();
     });
 }
 
 #[bench]
 #[cfg(feature = "avx-accel")]
 fn bench_mison_index_builder_avx_2(b: &mut test::Bencher) {
-    let index_builder = IndexBuilder::<AvxBackend>::default();
+    let index_builder = IndexBuilder::new(AvxBackend::default(), 1);
 
     b.iter(|| {
-        let _ = index_builder.build(INPUT.as_bytes(), 1).unwrap();
+        let _ = index_builder.build(INPUT.as_bytes()).unwrap();
     });
 }
 
 #[bench]
 #[cfg(feature = "avx-accel")]
 fn bench_mison_index_builder_avx_3(b: &mut test::Bencher) {
-    let index_builder = IndexBuilder::<AvxBackend>::default();
+    let index_builder = IndexBuilder::new(AvxBackend::default(), 25);
 
     b.iter(|| {
-        let _ = index_builder.build(INPUT.as_bytes(), 25).unwrap();
+        let _ = index_builder.build(INPUT.as_bytes()).unwrap();
     });
 }

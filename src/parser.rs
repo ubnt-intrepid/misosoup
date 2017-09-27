@@ -9,25 +9,24 @@ use value::{self, Value, ValueType};
 #[derive(Debug)]
 pub struct Parser<B: Backend> {
     index_builder: IndexBuilder<B>,
-    max_level: usize,
 }
 
 impl<B: Backend> Parser<B> {
-    pub fn new(index_builder: IndexBuilder<B>, max_level: usize) -> Self {
-        Self {
-            index_builder,
-            max_level,
-        }
+    pub fn new(index_builder: IndexBuilder<B>) -> Self {
+        Self { index_builder }
     }
 
     pub fn parse<'s>(&self, record: &'s str) -> Result<Value<'s>> {
         let record = record.trim();
-        let index = self.index_builder.build(record.as_bytes(), self.max_level)?;
+        let index = self.index_builder.build(record.as_bytes())?;
         self.parse_impl(record, 0, record.len(), 0, &index)
     }
 
     fn parse_array<'s>(&self, record: &'s str, begin: usize, end: usize, index: &StructuralIndex, level: usize) -> Result<Value<'s>> {
-        let cp = index.comma_positions(begin, end, level);
+        let cp = match index.comma_positions(begin, end, level) {
+            Some(cp) => cp,
+            None => return Ok(Value::raw(&record[begin..end])),
+        };
 
         let mut result = Vec::new();
 
@@ -43,8 +42,8 @@ impl<B: Backend> Parser<B> {
         }
 
         if !cp.is_empty() {
-            let (vsi, mut vei) = trimmed(record, cp[cp.len() - 1] + 1, end - 1);
-            while vei >= vsi && record.as_bytes()[vei - 1] == b']' {
+            let (vsi, mut vei) = trimmed(record, cp[cp.len() - 1] + 1, end);
+            while vei > vsi && record.as_bytes()[vei - 1] == b']' {
                 vei -= 1;
             }
             let (vsi, vei) = trimmed(record, vsi, vei);
@@ -57,7 +56,10 @@ impl<B: Backend> Parser<B> {
     }
 
     fn parse_object<'s>(&self, record: &'s str, begin: usize, mut end: usize, index: &StructuralIndex, level: usize) -> Result<Value<'s>> {
-        let cp = index.colon_positions(begin, end, level);
+        let cp = match index.colon_positions(begin, end, level) {
+            Some(cp) => cp,
+            None => return Ok(Value::raw(&record[begin..end])),
+        };
 
         let mut result = Vec::new();
 
@@ -66,7 +68,7 @@ impl<B: Backend> Parser<B> {
 
             let delim = if i == cp.len() - 1 { b'}' } else { b',' };
             let (vsi, mut vei) = trimmed(record, cp[i] + 1, end);
-            while vei >= cp[i] + 1 && record.as_bytes()[vei - 1] == delim {
+            while vei > cp[i] + 1 && record.as_bytes()[vei - 1] == delim {
                 vei -= 1;
             }
             let (vsi, vei) = trimmed(record, vsi, vei);
@@ -84,9 +86,8 @@ impl<B: Backend> Parser<B> {
     fn parse_impl<'s>(&self, record: &'s str, begin: usize, end: usize, level: usize, index: &StructuralIndex) -> Result<Value<'s>> {
         match value::parse(record, begin, end)? {
             ValueType::Atomic(v) => Ok(v),
-            ValueType::Array if level < self.max_level => self.parse_array(record, begin, end, index, level),
-            ValueType::Object if level < self.max_level => self.parse_object(record, begin, end, index, level),
-            _ => Ok(Value::raw(&record[begin..end])),
+            ValueType::Array => self.parse_array(record, begin, end, index, level),
+            ValueType::Object => self.parse_object(record, begin, end, index, level),
         }
     }
 }
@@ -100,6 +101,13 @@ fn trimmed(s: &str, mut begin: usize, mut end: usize) -> (usize, usize) {
         end -= 1;
     }
     (begin, end)
+}
+
+#[test]
+fn trimmed_1() {
+    let s = "[a, b, c]";
+    let (b, e) = trimmed(s, 0, s.len());
+    assert_eq!(&s[b..e], "[a, b, c]");
 }
 
 fn is_ws(s: &str, i: usize) -> bool {
@@ -126,8 +134,8 @@ mod tests {
         }"#;
 
         let backend = FallbackBackend::default();
-        let index_builder = IndexBuilder::new(backend);
-        let parser = Parser::new(index_builder, 4);
+        let index_builder = IndexBuilder::new(backend, 4);
+        let parser = Parser::new(index_builder);
 
         let result = parser.parse(record).unwrap();
         assert_eq!(
@@ -159,8 +167,8 @@ mod tests {
         }"#;
 
         let backend = FallbackBackend::default();
-        let index_builder = IndexBuilder::new(backend);
-        let parser = Parser::new(index_builder, 2);
+        let index_builder = IndexBuilder::new(backend, 2);
+        let parser = Parser::new(index_builder);
 
         let result = parser.parse(record).unwrap();
         assert_eq!(

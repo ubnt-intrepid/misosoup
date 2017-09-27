@@ -15,8 +15,8 @@ fn main() {
             "e3": null
         }
     }"#;
-    let index_builder = IndexBuilder::<FallbackBackend>::default();
-    let parser = Parser::new(index_builder, 3);
+    let index_builder = IndexBuilder::new(FallbackBackend::default(), 3);
+    let parser = Parser::new(index_builder);
     let parsed = parser.parse(input).unwrap();
     println!("{:?}", parsed);
 }
