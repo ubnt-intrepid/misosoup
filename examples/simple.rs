@@ -15,8 +15,9 @@ fn main() {
             "e3": null
         }
     }"#;
+    // let input = include_str!("../benches/temp.json");
     let index_builder = IndexBuilder::new(FallbackBackend::default(), 3);
     let parser = Parser::new(index_builder);
     let parsed = parser.parse(input).unwrap();
-    println!("{:?}", parsed);
+    println!("{:#?}", parsed);
 }

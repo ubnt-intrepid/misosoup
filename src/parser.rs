@@ -55,7 +55,7 @@ impl<B: Backend> Parser<B> {
                     // ensure not to call destructors of `uninitialized` elements.
                     result.set_len(0);
                 }
-                return Ok(Value::Array(vec![]));
+                return Ok(Value::Array(result));
             }
             let value = self.parse_impl(record, vsi, vei, level + 1, index)?;
 

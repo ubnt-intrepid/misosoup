@@ -2,11 +2,19 @@
 #![allow(missing_docs)]
 
 use std::borrow::Cow;
+use std::fmt;
 use errors::{Error, ErrorKind, Result, ResultExt};
 
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Clone, PartialEq, Eq, Hash)]
 pub struct EscapedStr<'a>(Cow<'a, str>);
+
+impl<'a> fmt::Debug for EscapedStr<'a> {
+    #[inline]
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        fmt::Debug::fmt(&self.0, f)
+    }
+}
 
 impl<'a> From<&'a str> for EscapedStr<'a> {
     #[inline]
@@ -32,7 +40,7 @@ impl<'a> From<Cow<'a, str>> for EscapedStr<'a> {
 
 pub type LinearMap<K, V> = Vec<(K, V)>;
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 #[cfg_attr(test, derive(PartialEq))]
 pub enum Value<'a> {
     Null,
@@ -42,6 +50,22 @@ pub enum Value<'a> {
     Array(Vec<Value<'a>>),
     Object(LinearMap<EscapedStr<'a>, Value<'a>>),
     Raw(Cow<'a, str>),
+}
+
+impl<'a> fmt::Debug for Value<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match *self {
+            Value::Null => write!(f, "null"),
+            Value::Boolean(b) => write!(f, "{}", b),
+            Value::Number(n) => write!(f, "{}", n),
+            Value::String(ref s) => fmt::Debug::fmt(s, f),
+            Value::Array(ref arr) => fmt::Debug::fmt(arr, f),
+            Value::Object(ref obj) => f.debug_map()
+                .entries(obj.iter().map(|&(ref k, ref v)| (k, v)))
+                .finish(),
+            Value::Raw(ref s) => write!(f, "Raw({:?})", s),
+        }
+    }
 }
 
 impl<'a> Value<'a> {
