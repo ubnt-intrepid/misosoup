@@ -90,14 +90,21 @@ impl<B: Backend> IndexBuilder<B> {
             let mut b_colon = self.b_colon.borrow_mut();
             let mut b_comma = self.b_comma.borrow_mut();
 
+            trait VecExt<T> {
+                fn init(&mut self, len: usize);
+            }
+            impl<T> VecExt<T> for Vec<T> {
+                #[inline]
+                fn init(&mut self, len: usize) {
+                    self.clear();
+                    self.reserve_exact(len);
+                }
+            }
             let b_len = (record.len() + 63) / 64;
-            bitmaps.clear();
-            bitmaps.reserve(b_len);
+            bitmaps.init(b_len);
             for (colon, comma) in izip!(&mut *b_colon, &mut *b_comma) {
-                colon.clear();
-                comma.clear();
-                colon.reserve(b_len);
-                comma.reserve(b_len);
+                colon.init(b_len);
+                comma.init(b_len);
             }
 
             // Step 1
