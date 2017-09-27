@@ -157,7 +157,7 @@ fn bench_mison_index_builder_fallback(b: &mut test::Bencher) {
     let index_builder = IndexBuilder::new(FallbackBackend::default(), 3);
 
     b.iter(|| {
-        let _ = index_builder.build(INPUT.as_bytes()).unwrap();
+        let _ = index_builder.build(INPUT).unwrap();
     });
 }
 
@@ -167,7 +167,7 @@ fn bench_mison_index_builder_sse2(b: &mut test::Bencher) {
     let index_builder = IndexBuilder::new(Sse2Backend::default(), 3);
 
     b.iter(|| {
-        let _ = index_builder.build(INPUT.as_bytes()).unwrap();
+        let _ = index_builder.build(INPUT).unwrap();
     });
 }
 
@@ -177,7 +177,7 @@ fn bench_mison_index_builder_avx(b: &mut test::Bencher) {
     let index_builder = IndexBuilder::new(AvxBackend::default(), 3);
 
     b.iter(|| {
-        let _ = index_builder.build(INPUT.as_bytes()).unwrap();
+        let _ = index_builder.build(INPUT).unwrap();
     });
 }
 
@@ -187,7 +187,7 @@ fn bench_mison_index_builder_avx_2(b: &mut test::Bencher) {
     let index_builder = IndexBuilder::new(AvxBackend::default(), 1);
 
     b.iter(|| {
-        let _ = index_builder.build(INPUT.as_bytes()).unwrap();
+        let _ = index_builder.build(INPUT).unwrap();
     });
 }
 
@@ -197,6 +197,6 @@ fn bench_mison_index_builder_avx_3(b: &mut test::Bencher) {
     let index_builder = IndexBuilder::new(AvxBackend::default(), 25);
 
     b.iter(|| {
-        let _ = index_builder.build(INPUT.as_bytes()).unwrap();
+        let _ = index_builder.build(INPUT).unwrap();
     });
 }

@@ -24,7 +24,7 @@ impl<B: Backend> IndexBuilder<B> {
     }
 
     /// Build a structural index from a slice of bytes.
-    pub fn build(&self, record: &[u8]) -> Result<StructuralIndex> {
+    pub fn build<'a, 's>(&'a self, record: &'s str) -> Result<StructuralIndex<'a, 's>> {
         {
             let mut inner = self.inner.borrow_mut();
 
@@ -48,7 +48,7 @@ impl<B: Backend> IndexBuilder<B> {
             }
 
             // Step 1
-            inner.build_structural_character_bitmaps(record, &self.backend);
+            inner.build_structural_character_bitmaps(record.as_bytes(), &self.backend);
 
             // Step 2
             inner.remove_unstructural_quotes();
@@ -61,6 +61,7 @@ impl<B: Backend> IndexBuilder<B> {
         }
 
         Ok(StructuralIndex {
+            record,
             inner: self.inner.borrow(),
         })
     }
@@ -258,7 +259,7 @@ mod tests {
     #[test]
     fn test_structural_character_bitmaps() {
         struct TestCase {
-            input: &'static [u8],
+            input: &'static str,
             level: usize,
             bitmaps: Vec<Bitmap>,
             b_colon: Vec<Vec<u64>>,
@@ -266,7 +267,7 @@ mod tests {
         }
         let cases = vec![
             TestCase {
-                input: b"{}",
+                input: "{}",
                 level: 1,
                 bitmaps: vec![
                     Bitmap {
@@ -284,7 +285,7 @@ mod tests {
                 b_comma: vec![vec![0]],
             },
             TestCase {
-                input: r#"{"x\"y\\":10}"#.as_bytes(),
+                input: r#"{"x\"y\\":10}"#,
                 level: 1,
                 bitmaps: vec![
                     Bitmap {
@@ -302,7 +303,7 @@ mod tests {
                 b_comma: vec![vec![0b_0000_0000_0000_0000]],
             },
             TestCase {
-                input: r#"{ "f1":"a", "f2":{ "e1": true, "e2": "::a" }, "f3":"\"foo\\" }"#.as_bytes(),
+                input: r#"{ "f1":"a", "f2":{ "e1": true, "e2": "::a" }, "f3":"\"foo\\" }"#,
                 level: 2,
                 bitmaps: vec![
                     Bitmap {
@@ -334,7 +335,7 @@ mod tests {
                 ],
             },
             TestCase {
-                input: r#"{ "f1": { "e1": { "d1": true } } }"#.as_bytes(),
+                input: r#"{ "f1": { "e1": { "d1": true } } }"#,
                 level: 3,
                 bitmaps: vec![
                     Bitmap {
@@ -352,7 +353,7 @@ mod tests {
                 b_comma: vec![vec![0], vec![0], vec![0]],
             },
             TestCase {
-                input: br#"{ "a": [0, 1, 2] }"#,
+                input: r#"{ "a": [0, 1, 2] }"#,
                 level: 2,
                 bitmaps: vec![
                     Bitmap {

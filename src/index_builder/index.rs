@@ -12,11 +12,12 @@ const POSITIONS_BUF_LENTGH: usize = 16;
 
 /// Structural index of a slice of bytes
 #[derive(Debug)]
-pub struct StructuralIndex<'a> {
-    pub(crate) inner: Ref<'a, Inner>,
+pub struct StructuralIndex<'a, 's> {
+    pub(super) record: &'s str,
+    pub(super) inner: Ref<'a, Inner>,
 }
 
-impl<'a> StructuralIndex<'a> {
+impl<'a, 's> StructuralIndex<'a, 's> {
     /// Calculate the position of colons at `level`, between from `begin` to `end`
     pub fn colon_positions(
         &self,
@@ -46,10 +47,30 @@ impl<'a> StructuralIndex<'a> {
     }
 
     #[allow(missing_docs)]
-    pub fn find_field<'s>(&self, record: &'s str, begin: usize, end: usize) -> Result<(EscapedStr<'s>, usize)> {
+    pub fn find_object_field(&self, begin: usize, end: usize) -> Result<(EscapedStr<'s>, usize)> {
         let (fsi, fei) =
             find_pre_field_indices(&self.inner.bitmaps, begin, end).chain_err(|| "find_pre_field_indices()")?;
-        Ok((EscapedStr::from(&record[fsi..fei]), fsi))
+        Ok((EscapedStr::from(&self.record[fsi..fei]), fsi))
+    }
+
+    #[allow(missing_docs)]
+    pub fn find_object_value(&self, begin: usize, end: usize, is_last_field: bool) -> (usize, usize) {
+        let delim = if is_last_field { b'}' } else { b',' };
+        let (vsi, mut vei) = trimmed(&self.record, begin, end);
+        while vei > begin && self.record.as_bytes()[vei - 1] == delim {
+            vei -= 1;
+        }
+        trimmed(&self.record, vsi, vei)
+    }
+
+    #[allow(missing_docs)]
+    pub fn find_array_value(&self, begin: usize, end: usize) -> (usize, usize) {
+        trimmed(&self.record, begin, end)
+    }
+
+    #[allow(missing_docs)]
+    pub fn substr(&self, begin: usize, end: usize) -> &'s str {
+        &self.record[begin..end]
     }
 }
 
@@ -92,4 +113,29 @@ fn find_pre_field_indices(bitmaps: &[Bitmap], begin: usize, end: usize) -> Resul
     }
 
     Err(ErrorKind::InvalidRecord.into())
+}
+
+
+fn trimmed(s: &str, mut begin: usize, mut end: usize) -> (usize, usize) {
+    while begin < end && is_ws(s, begin) {
+        begin += 1;
+    }
+    while end >= begin && is_ws(s, end - 1) {
+        end -= 1;
+    }
+    (begin, end)
+}
+
+#[test]
+fn trimmed_1() {
+    let s = "[a, b, c]";
+    let (b, e) = trimmed(s, 0, s.len());
+    assert_eq!(&s[b..e], "[a, b, c]");
+}
+
+fn is_ws(s: &str, i: usize) -> bool {
+    match s.as_bytes()[i] {
+        b' ' | b'\n' | b'\t' => true,
+        _ => false,
+    }
 }

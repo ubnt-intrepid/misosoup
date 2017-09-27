@@ -114,8 +114,8 @@ pub enum ValueType<'a> {
 
 /// Parse the input string and returns the instance of `Value`.
 #[inline]
-pub fn parse<'a>(record: &'a str, begin: usize, end: usize) -> Result<ValueType<'a>> {
-    match &record[begin..end] {
+pub fn parse<'a>(s: &'a str) -> Result<ValueType<'a>> {
+    match s {
         "null" => Ok(ValueType::Atomic(Value::Null)),
         "true" => Ok(ValueType::Atomic(Value::Boolean(true))),
         "false" => Ok(ValueType::Atomic(Value::Boolean(false))),
@@ -128,8 +128,7 @@ pub fn parse<'a>(record: &'a str, begin: usize, end: usize) -> Result<ValueType<
         s => if let Ok(n) = s.parse::<f64>() {
             Ok(ValueType::Atomic(Value::Number(n)))
         } else {
-            Err(Error::from(ErrorKind::InvalidRecord))
-                .chain_err(|| format!("Value::from_str({:?})", &record[begin..end]))
+            Err(Error::from(ErrorKind::InvalidRecord)).chain_err(|| format!("Value::from_str({:?})", s))
         },
     }
 }

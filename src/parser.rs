@@ -19,16 +19,15 @@ impl<B: Backend> Parser<B> {
 
     pub fn parse<'s>(&self, record: &'s str) -> Result<Value<'s>> {
         let record = record.trim();
-        let index = self.index_builder.build(record.as_bytes())?;
-        self.parse_impl(record, 0, record.len(), 0, &index)
+        let index = self.index_builder.build(record)?;
+        self.parse_impl(&index, 0, record.len(), 0)
     }
 
-    fn parse_array<'s>(
+    fn parse_array<'a, 's>(
         &self,
-        record: &'s str,
+        index: &StructuralIndex<'a, 's>,
         begin: usize,
         end: usize,
-        index: &StructuralIndex,
         level: usize,
     ) -> Result<Value<'s>> {
         let cp = match index.comma_positions(begin, end, level) {
@@ -36,7 +35,7 @@ impl<B: Backend> Parser<B> {
                 cp.push(end - 1); // dummy
                 cp
             }
-            None => return Ok(Value::raw(&record[begin..end])),
+            None => return Ok(Value::raw(index.substr(begin, end))),
         };
 
         let mut result = Vec::with_capacity(cp.len());
@@ -45,11 +44,7 @@ impl<B: Backend> Parser<B> {
         }
 
         for i in 0..cp.len() {
-            let (vsi, vei) = trimmed(
-                record,
-                if i == 0 { begin + 1 } else { cp[i - 1] + 1 },
-                cp[i],
-            );
+            let (vsi, vei) = index.find_array_value(if i == 0 { begin + 1 } else { cp[i - 1] + 1 }, cp[i]);
             if i == 0 && vsi == vei {
                 unsafe {
                     // ensure not to call destructors of `uninitialized` elements.
@@ -57,7 +52,7 @@ impl<B: Backend> Parser<B> {
                 }
                 return Ok(Value::Array(result));
             }
-            let value = self.parse_impl(record, vsi, vei, level + 1, index)?;
+            let value = self.parse_impl(index, vsi, vei, level + 1)?;
 
             unsafe {
                 ptr::write(result.get_unchecked_mut(i), value);
@@ -67,17 +62,16 @@ impl<B: Backend> Parser<B> {
         Ok(Value::Array(result))
     }
 
-    fn parse_object<'s>(
+    fn parse_object<'a, 's>(
         &self,
-        record: &'s str,
+        index: &StructuralIndex<'a, 's>,
         begin: usize,
         mut end: usize,
-        index: &StructuralIndex,
         level: usize,
     ) -> Result<Value<'s>> {
         let cp = match index.colon_positions(begin, end, level) {
             Some(cp) => cp,
-            None => return Ok(Value::raw(&record[begin..end])),
+            None => return Ok(Value::raw(index.substr(begin, end))),
         };
 
         let mut result = Vec::with_capacity(cp.len());
@@ -86,15 +80,10 @@ impl<B: Backend> Parser<B> {
         }
 
         for i in (0..cp.len()).rev() {
-            let (field, fsi) = index.find_field(record, if i == 0 { begin } else { cp[i - 1] }, cp[i])?;
+            let (field, fsi) = index.find_object_field(if i == 0 { begin } else { cp[i - 1] }, cp[i])?;
 
-            let delim = if i == cp.len() - 1 { b'}' } else { b',' };
-            let (vsi, mut vei) = trimmed(record, cp[i] + 1, end);
-            while vei > cp[i] + 1 && record.as_bytes()[vei - 1] == delim {
-                vei -= 1;
-            }
-            let (vsi, vei) = trimmed(record, vsi, vei);
-            let value = self.parse_impl(record, vsi, vei, level + 1, index)?;
+            let (vsi, vei) = index.find_object_value(cp[i] + 1, end, i == cp.len() - 1);
+            let value = self.parse_impl(index, vsi, vei, level + 1)?;
 
             unsafe {
                 ptr::write(result.get_unchecked_mut(i), (field, value));
@@ -107,46 +96,21 @@ impl<B: Backend> Parser<B> {
     }
 
     #[inline]
-    fn parse_impl<'s>(
+    fn parse_impl<'a, 's>(
         &self,
-        record: &'s str,
+        index: &StructuralIndex<'a, 's>,
         begin: usize,
         end: usize,
         level: usize,
-        index: &StructuralIndex,
     ) -> Result<Value<'s>> {
-        match value::parse(record, begin, end)? {
+        match value::parse(&index.substr(begin, end))? {
             ValueType::Atomic(v) => Ok(v),
-            ValueType::Array => self.parse_array(record, begin, end, index, level),
-            ValueType::Object => self.parse_object(record, begin, end, index, level),
+            ValueType::Array => self.parse_array(index, begin, end, level),
+            ValueType::Object => self.parse_object(index, begin, end, level),
         }
     }
 }
 
-
-fn trimmed(s: &str, mut begin: usize, mut end: usize) -> (usize, usize) {
-    while begin < end && is_ws(s, begin) {
-        begin += 1;
-    }
-    while end >= begin && is_ws(s, end - 1) {
-        end -= 1;
-    }
-    (begin, end)
-}
-
-#[test]
-fn trimmed_1() {
-    let s = "[a, b, c]";
-    let (b, e) = trimmed(s, 0, s.len());
-    assert_eq!(&s[b..e], "[a, b, c]");
-}
-
-fn is_ws(s: &str, i: usize) -> bool {
-    match s.as_bytes()[i] {
-        b' ' | b'\n' | b'\t' => true,
-        _ => false,
-    }
-}
 
 #[cfg(test)]
 mod tests {
