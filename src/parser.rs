@@ -82,27 +82,42 @@ impl<B: Backend> Parser<B> {
             result.set_len(cp.len());
         }
 
+        let mut err = Ok(());
         for i in (0..cp.len()).rev() {
-            let (field, fsi) = index.find_object_field(if i == 0 { begin } else { cp[i - 1] }, cp[i])?;
+            let (field, fsi) = match index.find_object_field(if i == 0 { begin } else { cp[i - 1] }, cp[i]) {
+                Ok(v) => v,
+                Err(e) => {
+                    err = Err((i, e));
+                    break;
+                }
+            };
 
             let (vsi, vei) = index.find_object_value(cp[i] + 1, end, i == cp.len() - 1);
-            let value = self.parse_impl(index, vsi, vei, level + 1).map_err(|e| {
-                unsafe {
-                    for j in i + 1..cp.len() {
-                        // call destructors of `initialized` elements.
-                        ptr::drop_in_place(result.get_unchecked_mut(j));
-                    }
-                    // ensure not to call destructors of `uninitialized` elements
-                    result.set_len(0);
+            let value = match self.parse_impl(index, vsi, vei, level + 1) {
+                Ok(v) => v,
+                Err(e) => {
+                    err = Err((i, e));
+                    break;
                 }
-                e
-            })?;
+            };
 
             unsafe {
                 ptr::write(result.get_unchecked_mut(i), (field, value));
             }
 
             end = fsi - 1;
+        }
+
+        if let Err((i, e)) = err {
+            unsafe {
+                for j in i + 1..cp.len() {
+                    // call destructors of `initialized` elements.
+                    ptr::drop_in_place(result.get_unchecked_mut(j));
+                }
+                // ensure not to call destructors of `uninitialized` elements
+                result.set_len(0);
+            }
+            return Err(e);
         }
 
         Ok(Value::Object(result))
