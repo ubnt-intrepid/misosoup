@@ -2,6 +2,7 @@ use std::cell::Ref;
 use smallvec::SmallVec;
 use bit;
 use errors::{ErrorKind, Result, ResultExt};
+use value::EscapedStr;
 
 use super::builder::Inner;
 use super::backend::Bitmap;
@@ -45,10 +46,10 @@ impl<'a> StructuralIndex<'a> {
     }
 
     #[allow(missing_docs)]
-    pub fn find_field<'s>(&self, record: &'s str, begin: usize, end: usize) -> Result<(&'s str, usize)> {
+    pub fn find_field<'s>(&self, record: &'s str, begin: usize, end: usize) -> Result<(EscapedStr<'s>, usize)> {
         let (fsi, fei) =
             find_pre_field_indices(&self.inner.bitmaps, begin, end).chain_err(|| "find_pre_field_indices()")?;
-        Ok((&record[fsi..fei], fsi))
+        Ok((EscapedStr::from(&record[fsi..fei]), fsi))
     }
 }
 

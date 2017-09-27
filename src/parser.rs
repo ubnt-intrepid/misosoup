@@ -1,5 +1,6 @@
 #![allow(missing_docs)]
 
+use std::ptr;
 use index_builder::{IndexBuilder, StructuralIndex};
 use index_builder::backend::Backend;
 use errors::Result;
@@ -39,6 +40,9 @@ impl<B: Backend> Parser<B> {
         };
 
         let mut result = Vec::with_capacity(cp.len());
+        unsafe {
+            result.set_len(cp.len());
+        }
 
         for i in 0..cp.len() {
             let (vsi, vei) = trimmed(
@@ -47,12 +51,17 @@ impl<B: Backend> Parser<B> {
                 cp[i],
             );
             if i == 0 && vsi == vei {
-                break;
+                unsafe {
+                    // ensure not to call destructors of `uninitialized` elements.
+                    result.set_len(0);
+                }
+                return Ok(Value::Array(vec![]));
             }
-
             let value = self.parse_impl(record, vsi, vei, level + 1, index)?;
 
-            result.push(value);
+            unsafe {
+                ptr::write(result.get_unchecked_mut(i), value);
+            }
         }
 
         Ok(Value::Array(result))
@@ -72,6 +81,9 @@ impl<B: Backend> Parser<B> {
         };
 
         let mut result = Vec::with_capacity(cp.len());
+        unsafe {
+            result.set_len(cp.len());
+        }
 
         for i in (0..cp.len()).rev() {
             let (field, fsi) = index.find_field(record, if i == 0 { begin } else { cp[i - 1] }, cp[i])?;
@@ -84,12 +96,14 @@ impl<B: Backend> Parser<B> {
             let (vsi, vei) = trimmed(record, vsi, vei);
             let value = self.parse_impl(record, vsi, vei, level + 1, index)?;
 
-            result.push((field.into(), value));
+            unsafe {
+                ptr::write(result.get_unchecked_mut(i), (field, value));
+            }
 
             end = fsi - 1;
         }
 
-        Ok(Value::Object(result.into_iter().rev().collect()))
+        Ok(Value::Object(result))
     }
 
     #[inline]
