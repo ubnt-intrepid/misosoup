@@ -70,6 +70,7 @@ impl<'a, 's> StructuralIndex<'a, 's> {
 
     #[allow(missing_docs)]
     pub fn substr(&self, begin: usize, end: usize) -> &'s str {
+        debug_assert!(begin <= end);
         &self.record[begin..end]
     }
 }

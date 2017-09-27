@@ -52,7 +52,12 @@ impl<B: Backend> Parser<B> {
                 }
                 return Ok(Value::Array(result));
             }
-            let value = self.parse_impl(index, vsi, vei, level + 1)?;
+            let value = self.parse_impl(index, vsi, vei, level + 1).map_err(|e| {
+                unsafe {
+                    result.set_len(i);
+                }
+                e
+            })?;
 
             unsafe {
                 ptr::write(result.get_unchecked_mut(i), value);
@@ -83,7 +88,17 @@ impl<B: Backend> Parser<B> {
             let (field, fsi) = index.find_object_field(if i == 0 { begin } else { cp[i - 1] }, cp[i])?;
 
             let (vsi, vei) = index.find_object_value(cp[i] + 1, end, i == cp.len() - 1);
-            let value = self.parse_impl(index, vsi, vei, level + 1)?;
+            let value = self.parse_impl(index, vsi, vei, level + 1).map_err(|e| {
+                unsafe {
+                    for j in i + 1..cp.len() {
+                        // call destructors of `initialized` elements.
+                        ptr::drop_in_place(result.get_unchecked_mut(j));
+                    }
+                    // ensure not to call destructors of `uninitialized` elements
+                    result.set_len(0);
+                }
+                e
+            })?;
 
             unsafe {
                 ptr::write(result.get_unchecked_mut(i), (field, value));
