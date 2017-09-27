@@ -102,7 +102,8 @@ pub fn parse<'a>(record: &'a str, begin: usize, end: usize) -> Result<ValueType<
         s => if let Ok(n) = s.parse::<f64>() {
             Ok(ValueType::Atomic(Value::Number(n)))
         } else {
-            Err(Error::from(ErrorKind::InvalidRecord)).chain_err(|| format!("Value::from_str({:?})", &record[begin..end]))
+            Err(Error::from(ErrorKind::InvalidRecord))
+                .chain_err(|| format!("Value::from_str({:?})", &record[begin..end]))
         },
     }
 }

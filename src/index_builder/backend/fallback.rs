@@ -136,7 +136,8 @@ impl m256i {
     fn move_mask(self) -> u64 {
         let f = 0x_8040_2010_0804_0201_u64;
         ((self.0[0].wrapping_mul(f) >> 56) & 0x0000_00FF_u64 | (self.0[1].wrapping_mul(f) >> 48) & 0x0000_FF00_u64
-            | (self.0[2].wrapping_mul(f) >> 40) & 0x00FF_0000_u64 | (self.0[3].wrapping_mul(f) >> 32) & 0xFF00_0000_u64)
+            | (self.0[2].wrapping_mul(f) >> 40) & 0x00FF_0000_u64
+            | (self.0[3].wrapping_mul(f) >> 32) & 0xFF00_0000_u64)
     }
 }
 

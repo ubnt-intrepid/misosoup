@@ -33,7 +33,8 @@ impl<'a> StructuralIndex<'a> {
 
     #[allow(missing_docs)]
     pub fn find_field<'s>(&self, record: &'s str, begin: usize, end: usize) -> Result<(&'s str, usize)> {
-        let (fsi, fei) = find_pre_field_indices(&self.inner.bitmaps, begin, end).chain_err(|| "find_pre_field_indices()")?;
+        let (fsi, fei) =
+            find_pre_field_indices(&self.inner.bitmaps, begin, end).chain_err(|| "find_pre_field_indices()")?;
         Ok((&record[fsi..fei], fsi))
     }
 }

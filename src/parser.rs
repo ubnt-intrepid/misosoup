@@ -22,7 +22,14 @@ impl<B: Backend> Parser<B> {
         self.parse_impl(record, 0, record.len(), 0, &index)
     }
 
-    fn parse_array<'s>(&self, record: &'s str, begin: usize, end: usize, index: &StructuralIndex, level: usize) -> Result<Value<'s>> {
+    fn parse_array<'s>(
+        &self,
+        record: &'s str,
+        begin: usize,
+        end: usize,
+        index: &StructuralIndex,
+        level: usize,
+    ) -> Result<Value<'s>> {
         let cp = match index.comma_positions(begin, end, level) {
             Some(cp) => cp,
             None => return Ok(Value::raw(&record[begin..end])),
@@ -55,7 +62,14 @@ impl<B: Backend> Parser<B> {
         Ok(Value::Array(result))
     }
 
-    fn parse_object<'s>(&self, record: &'s str, begin: usize, mut end: usize, index: &StructuralIndex, level: usize) -> Result<Value<'s>> {
+    fn parse_object<'s>(
+        &self,
+        record: &'s str,
+        begin: usize,
+        mut end: usize,
+        index: &StructuralIndex,
+        level: usize,
+    ) -> Result<Value<'s>> {
         let cp = match index.colon_positions(begin, end, level) {
             Some(cp) => cp,
             None => return Ok(Value::raw(&record[begin..end])),
@@ -83,7 +97,14 @@ impl<B: Backend> Parser<B> {
     }
 
     #[inline]
-    fn parse_impl<'s>(&self, record: &'s str, begin: usize, end: usize, level: usize, index: &StructuralIndex) -> Result<Value<'s>> {
+    fn parse_impl<'s>(
+        &self,
+        record: &'s str,
+        begin: usize,
+        end: usize,
+        level: usize,
+        index: &StructuralIndex,
+    ) -> Result<Value<'s>> {
         match value::parse(record, begin, end)? {
             ValueType::Atomic(v) => Ok(v),
             ValueType::Array => self.parse_array(record, begin, end, index, level),
