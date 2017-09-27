@@ -1,7 +1,7 @@
 //! Definition of pattern tree and query parsing
 
 use std::cmp;
-use std::collections::HashMap;
+use fnv::FnvHashMap;
 use errors::{ErrorKind, Result};
 
 /// Child node in pattern tree
@@ -15,7 +15,7 @@ pub struct QueryNode<'a> {
     /// level in the associated tree
     level: usize,
     /// child nodes
-    children: HashMap<&'a str, QueryNode<'a>>,
+    children: FnvHashMap<&'a str, QueryNode<'a>>,
 }
 
 impl<'a> QueryNode<'a> {
@@ -130,6 +130,18 @@ impl<'a> QueryTree<'a> {
 mod tests {
     use super::*;
 
+    macro_rules! hashmap {
+        (@single $($x:tt)*) => (());
+        (@count $($rest:expr),*) => (<[()]>::len(&[$(hashmap!(@single $rest)),*]));
+
+        ($($k:expr => $v:expr,)+) => { hashmap!($($k => $v),+) };
+        ($($k:expr => $v:expr),*) => {{
+            let mut _map = ::std::collections::HashMap::with_capacity_and_hasher(hashmap!(@count $($k),*), Default::default());
+            $( _map.insert($k, $v); )*
+            _map
+        }}
+    }
+
     #[test]
     fn invalid_query() {
         let cases: &[&str] = &["", "$", "$.."];
@@ -187,7 +199,7 @@ mod tests {
                                         node_id: 1,
                                         query_id: Some(0),
                                         level: 2,
-                                        children: HashMap::default(),
+                                        children: Default::default(),
                                     }
                                 },
                             },
@@ -235,7 +247,7 @@ mod tests {
                                         node_id: 4,
                                         query_id: Some(2),
                                         level: 2,
-                                        children: HashMap::default(),
+                                        children: Default::default(),
                                     }
                                 },
                             },
