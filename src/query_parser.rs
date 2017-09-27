@@ -1,5 +1,6 @@
 #![allow(missing_docs)]
 
+use std::cell::RefCell;
 use errors::{Error, ErrorKind, Result, ResultExt};
 use index_builder::{IndexBuilder, StructuralIndex};
 use index_builder::backend::Backend;
@@ -10,13 +11,16 @@ use query::{QueryNode, QueryTree};
 pub struct QueryParser<'a, B: Backend> {
     index_builder: IndexBuilder<B>,
     query_tree: QueryTree<'a>,
+    colon_positions: Vec<RefCell<Vec<usize>>>,
 }
 
 impl<'a, B: Backend> QueryParser<'a, B> {
     pub fn new(index_builder: IndexBuilder<B>, query_tree: QueryTree<'a>) -> Self {
+        let num_nodes = query_tree.num_nodes();
         Self {
             index_builder,
             query_tree,
+            colon_positions: vec![RefCell::new(vec![]); num_nodes],
         }
     }
 
@@ -47,10 +51,15 @@ impl<'a, B: Backend> QueryParser<'a, B> {
         node: &QueryNode,
         results: &mut [Option<&'s str>],
     ) -> Result<()> {
-        let cp = index
-            .colon_positions(begin, end, node.level())
-            .ok_or_else(|| Error::from(ErrorKind::InvalidRecord))
-            .chain_err(|| "mismatched level")?;
+        if !index.colon_positions(
+            begin,
+            end,
+            node.level(),
+            &mut *RefCell::borrow_mut(&self.colon_positions[node.node_id()]),
+        ) {
+            return Err(Error::from(ErrorKind::InvalidRecord)).chain_err(|| "mismatched level");
+        }
+        let cp = self.colon_positions[node.node_id()].borrow();
 
         let mut num_found = 0;
         for i in (0..cp.len()).rev() {

@@ -30,13 +30,11 @@ impl<B: Backend> Parser<B> {
         end: usize,
         level: usize,
     ) -> Result<Value<'s>> {
-        let cp = match index.comma_positions(begin, end, level) {
-            Some(mut cp) => {
-                cp.push(end - 1); // dummy
-                cp
-            }
-            None => return Ok(Value::raw(index.substr(begin, end))),
+        let mut cp = Vec::new();
+        if !index.comma_positions(begin, end, level, &mut cp) {
+            return Ok(Value::raw(index.substr(begin, end)));
         };
+        cp.push(end - 1); // dummy
 
         let mut result = Vec::with_capacity(cp.len());
         unsafe {
@@ -74,10 +72,10 @@ impl<B: Backend> Parser<B> {
         mut end: usize,
         level: usize,
     ) -> Result<Value<'s>> {
-        let cp = match index.colon_positions(begin, end, level) {
-            Some(cp) => cp,
-            None => return Ok(Value::raw(index.substr(begin, end))),
-        };
+        let mut cp = Vec::new();
+        if !index.colon_positions(begin, end, level, &mut cp) {
+            return Ok(Value::raw(index.substr(begin, end)));
+        }
 
         let mut result = Vec::with_capacity(cp.len());
         unsafe {

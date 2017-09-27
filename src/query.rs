@@ -25,6 +25,11 @@ impl<'a> QueryNode<'a> {
     }
 
     #[allow(missing_docs)]
+    pub fn node_id(&self) -> usize {
+        self.node_id
+    }
+
+    #[allow(missing_docs)]
     pub fn path_id(&self) -> Option<usize> {
         self.query_id
     }
@@ -55,20 +60,17 @@ pub struct QueryTree<'a> {
     paths: Vec<&'a str>,
     /// maximal level in this tree
     max_level: usize,
-    /// number of nodes in this tree, exclude the root node
+    /// number of nodes in this tree
     num_nodes: usize,
 }
 
 impl<'a> Default for QueryTree<'a> {
     fn default() -> Self {
         Self {
-            root: QueryNode {
-                node_id: !0,
-                ..Default::default()
-            },
+            root: QueryNode::default(),
             paths: vec![],
             max_level: 0,
-            num_nodes: 0,
+            num_nodes: 1,
         }
     }
 }
@@ -107,6 +109,11 @@ impl<'a> QueryTree<'a> {
         self.paths.push(path);
 
         Ok(())
+    }
+
+    #[allow(missing_docs)]
+    pub fn num_nodes(&self) -> usize {
+        self.num_nodes
     }
 
     #[allow(missing_docs)]
@@ -162,15 +169,15 @@ mod tests {
                 input: &["$.foo"],
                 expect: QueryTree {
                     max_level: 1,
-                    num_nodes: 1,
+                    num_nodes: 2,
                     paths: vec!["$.foo"],
                     root: QueryNode {
-                        node_id: !0,
+                        node_id: 0,
                         query_id: None,
                         level: 0,
                         children: hashmap!{
                             "foo" => QueryNode {
-                                node_id: 0,
+                                node_id: 1,
                                 query_id: Some(0),
                                 level: 1,
                                 children: Default::default(),
@@ -183,20 +190,20 @@ mod tests {
                 input: &["$.foo.bar"],
                 expect: QueryTree {
                     max_level: 2,
-                    num_nodes: 2,
+                    num_nodes: 3,
                     paths: vec!["$.foo.bar"],
                     root: QueryNode {
-                        node_id: !0,
+                        node_id: 0,
                         query_id: None,
                         level: 0,
                         children: hashmap!{
                             "foo" => QueryNode {
-                                node_id: 0,
+                                node_id: 1,
                                 query_id: None,
                                 level: 1,
                                 children: hashmap!{
                                     "bar" => QueryNode {
-                                        node_id: 1,
+                                        node_id: 2,
                                         query_id: Some(0),
                                         level: 2,
                                         children: Default::default(),
@@ -211,25 +218,25 @@ mod tests {
                 input: &["$.f1.e1", "$.f1.e1.c3", "$.f2.e1"],
                 expect: QueryTree {
                     max_level: 3,
-                    num_nodes: 5,
+                    num_nodes: 6,
                     paths: vec!["$.f1.e1", "$.f1.e1.c3", "$.f2.e1"],
                     root: QueryNode {
-                        node_id: !0,
+                        node_id: 0,
                         query_id: None,
                         level: 0,
                         children: hashmap!{
                             "f1" => QueryNode {
-                                node_id: 0,
+                                node_id: 1,
                                 query_id: None,
                                 level: 1,
                                 children: hashmap!{
                                     "e1" => QueryNode {
-                                        node_id: 1,
+                                        node_id: 2,
                                         query_id: Some(0),
                                         level: 2,
                                         children: hashmap!{
                                             "c3" => QueryNode {
-                                                node_id: 2,
+                                                node_id: 3,
                                                 query_id: Some(1),
                                                 level: 3,
                                                 children: Default::default(),
@@ -239,12 +246,12 @@ mod tests {
                                 },
                             },
                             "f2" => QueryNode {
-                                node_id: 3,
+                                node_id: 4,
                                 query_id: None,
                                 level: 1,
                                 children: hashmap!{
                                     "e1" => QueryNode {
-                                        node_id: 4,
+                                        node_id: 5,
                                         query_id: Some(2),
                                         level: 2,
                                         children: Default::default(),

@@ -1,13 +1,10 @@
 use std::cell::Ref;
-use smallvec::SmallVec;
 use bit;
 use errors::{ErrorKind, Result, ResultExt};
 use value::EscapedStr;
 
 use super::builder::Inner;
 use super::backend::Bitmap;
-
-const POSITIONS_BUF_LENTGH: usize = 16;
 
 
 /// Structural index of a slice of bytes
@@ -19,30 +16,24 @@ pub struct StructuralIndex<'a, 's> {
 
 impl<'a, 's> StructuralIndex<'a, 's> {
     /// Calculate the position of colons at `level`, between from `begin` to `end`
-    pub fn colon_positions(
-        &self,
-        begin: usize,
-        end: usize,
-        level: usize,
-    ) -> Option<SmallVec<[usize; POSITIONS_BUF_LENTGH]>> {
+    pub fn colon_positions(&self, begin: usize, end: usize, level: usize, cp: &mut Vec<usize>) -> bool {
+        cp.clear();
         if level < self.inner.b_colon.len() {
-            Some(generate_positions(&self.inner.b_colon[level], begin, end))
+            generate_positions(&self.inner.b_colon[level], begin, end, cp);
+            true
         } else {
-            None
+            false
         }
     }
 
     /// Calculate the position of colons at `level`, between from `begin` to `end`
-    pub fn comma_positions(
-        &self,
-        begin: usize,
-        end: usize,
-        level: usize,
-    ) -> Option<SmallVec<[usize; POSITIONS_BUF_LENTGH]>> {
+    pub fn comma_positions(&self, begin: usize, end: usize, level: usize, cp: &mut Vec<usize>) -> bool {
+        cp.clear();
         if level < self.inner.b_comma.len() {
-            Some(generate_positions(&self.inner.b_comma[level], begin, end))
+            generate_positions(&self.inner.b_comma[level], begin, end, cp);
+            true
         } else {
-            None
+            false
         }
     }
 
@@ -76,9 +67,7 @@ impl<'a, 's> StructuralIndex<'a, 's> {
 }
 
 
-fn generate_positions(bitmap: &[u64], begin: usize, end: usize) -> SmallVec<[usize; POSITIONS_BUF_LENTGH]> {
-    let mut cp = SmallVec::new();
-
+fn generate_positions(bitmap: &[u64], begin: usize, end: usize, cp: &mut Vec<usize>) {
     for i in begin / 64..(end - 1 + 63) / 64 {
         let mut m_bits = bitmap[i];
         while m_bits != 0 {
@@ -90,8 +79,6 @@ fn generate_positions(bitmap: &[u64], begin: usize, end: usize) -> SmallVec<[usi
             m_bits = bit::R(m_bits);
         }
     }
-
-    cp
 }
 
 fn find_pre_field_indices(bitmaps: &[Bitmap], begin: usize, end: usize) -> Result<(usize, usize)> {
