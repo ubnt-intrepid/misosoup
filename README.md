@@ -1,7 +1,8 @@
-# `mison-rs`
+# `mison-rs` [![CircleCI](https://circleci.com/gh/ubnt-intrepid/mison-rs/tree/master.svg?style=svg)](https://circleci.com/gh/ubnt-intrepid/mison-rs/tree/master) [![Build Status](https://travis-ci.org/ubnt-intrepid/mison-rs.svg?branch=master)](https://travis-ci.org/ubnt-intrepid/mison-rs)
 
-[![CircleCI](https://circleci.com/gh/ubnt-intrepid/mison-rs/tree/master.svg?style=svg)](https://circleci.com/gh/ubnt-intrepid/mison-rs/tree/master)
-[![Build Status](https://travis-ci.org/ubnt-intrepid/mison-rs.svg?branch=master)](https://travis-ci.org/ubnt-intrepid/mison-rs)
+A JSON parser for Rust, based on Mison.
+
+This project is not production ready.
 
 ## Examples
 
@@ -72,3 +73,10 @@ fn main() {
 $ RUSTFLAGS="-C target-cpu=native" cargo +nightly run
 [Some("\"bar\""), Some("[null]")]
 ```
+
+## TODOs
+- [ ] array query (`"$.foo[0].bar"`)
+- [ ] Speculative parsing
+
+## License
+MIT/Apache 2.0
