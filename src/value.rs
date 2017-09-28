@@ -9,6 +9,12 @@ use errors::{Error, ErrorKind, Result, ResultExt};
 #[derive(Clone, PartialEq, Eq, Hash)]
 pub struct EscapedStr<'a>(Cow<'a, str>);
 
+impl<'a> EscapedStr<'a> {
+    pub fn as_raw_str(&self) -> &str {
+        &self.0
+    }
+}
+
 impl<'a> fmt::Debug for EscapedStr<'a> {
     #[inline]
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
