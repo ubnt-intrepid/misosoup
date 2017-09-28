@@ -18,5 +18,6 @@ pub mod bit;
 pub mod errors;
 pub mod index_builder;
 pub mod parser;
+pub mod pattern_tree;
 pub mod query;
 pub mod query_parser;

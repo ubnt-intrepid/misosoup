@@ -8,6 +8,7 @@ fnv = "*"
 num = "*"
 error-chain = "*"
 itertools = "*"
+linear-map = "*"
 smallvec = "*"
 stdsimd = { version = "*", optional = true }
 
