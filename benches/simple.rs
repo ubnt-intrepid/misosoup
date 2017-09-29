@@ -7,7 +7,7 @@ extern crate test;
 
 use mison::parser::Parser;
 use mison::query::QueryTree;
-use mison::query_parser::QueryParser;
+use mison::query_parser::{QueryParser, QueryParserMode};
 use mison::index_builder::IndexBuilder;
 use mison::index_builder::backend::FallbackBackend;
 #[cfg(feature = "simd-accel")]
@@ -71,22 +71,23 @@ fn bench_mison_avx_3(b: &mut test::Bencher) {
     });
 }
 
+
 #[bench]
 #[cfg(feature = "avx-accel")]
-fn bench_mison_avx_queried(b: &mut test::Bencher) {
+fn bench_mison_avx_basic_1(b: &mut test::Bencher) {
     let mut queries = QueryTree::default();
     queries.add_path("$._id.$oid").unwrap();
     let index_builder = IndexBuilder::new(AvxBackend::default(), queries.max_level());
     let parser = QueryParser::new(index_builder, queries);
 
     b.iter(|| {
-        let _ = parser.parse(INPUT).unwrap();
+        let _ = parser.parse(INPUT, QueryParserMode::Basic).unwrap();
     });
 }
 
 #[bench]
 #[cfg(feature = "avx-accel")]
-fn bench_mison_avx_queried_2(b: &mut test::Bencher) {
+fn bench_mison_avx_basic_2(b: &mut test::Bencher) {
     let mut queries = QueryTree::default();
     queries.add_path("$._id.$oid").unwrap();
     queries.add_path("$.partners").unwrap();
@@ -94,26 +95,83 @@ fn bench_mison_avx_queried_2(b: &mut test::Bencher) {
     let parser = QueryParser::new(index_builder, queries);
 
     b.iter(|| {
-        let _ = parser.parse(INPUT).unwrap();
+        let _ = parser.parse(INPUT, QueryParserMode::Basic).unwrap();
     });
 }
 
 #[bench]
 #[cfg(feature = "avx-accel")]
-fn bench_mison_avx_queried_3(b: &mut test::Bencher) {
+fn bench_mison_avx_basic_3(b: &mut test::Bencher) {
     let mut queries = QueryTree::default();
     queries.add_path("$.partners").unwrap();
     let index_builder = IndexBuilder::new(AvxBackend::default(), queries.max_level());
     let parser = QueryParser::new(index_builder, queries);
 
     b.iter(|| {
-        let _ = parser.parse(INPUT).unwrap();
+        let _ = parser.parse(INPUT, QueryParserMode::Basic).unwrap();
+    });
+}
+
+
+#[bench]
+#[cfg(feature = "avx-accel")]
+fn bench_mison_avx_speculative_1(b: &mut test::Bencher) {
+    let mut queries = QueryTree::default();
+    queries.add_path("$._id.$oid").unwrap();
+    let index_builder = IndexBuilder::new(AvxBackend::default(), queries.max_level());
+    let mut parser = QueryParser::new(index_builder, queries);
+
+    // train
+    parser.save_patterns(true);
+    let _ = parser.parse(INPUT, QueryParserMode::Basic).unwrap();
+    parser.save_patterns(false);
+
+    b.iter(|| {
+        let _ = parser.parse(INPUT, QueryParserMode::Speculative).unwrap();
     });
 }
 
 #[bench]
 #[cfg(feature = "avx-accel")]
-fn bench_pikkr(b: &mut test::Bencher) {
+fn bench_mison_avx_speculative_2(b: &mut test::Bencher) {
+    let mut queries = QueryTree::default();
+    queries.add_path("$._id.$oid").unwrap();
+    queries.add_path("$.partners").unwrap();
+    let index_builder = IndexBuilder::new(AvxBackend::default(), queries.max_level());
+    let mut parser = QueryParser::new(index_builder, queries);
+
+    // train
+    parser.save_patterns(true);
+    let _ = parser.parse(INPUT, QueryParserMode::Basic).unwrap();
+    parser.save_patterns(false);
+
+    b.iter(|| {
+        let _ = parser.parse(INPUT, QueryParserMode::Speculative).unwrap();
+    });
+}
+
+#[bench]
+#[cfg(feature = "avx-accel")]
+fn bench_mison_avx_speculative_3(b: &mut test::Bencher) {
+    let mut queries = QueryTree::default();
+    queries.add_path("$.partners").unwrap();
+    let index_builder = IndexBuilder::new(AvxBackend::default(), queries.max_level());
+    let mut parser = QueryParser::new(index_builder, queries);
+
+    // train
+    parser.save_patterns(true);
+    let _ = parser.parse(INPUT, QueryParserMode::Basic).unwrap();
+    parser.save_patterns(false);
+
+    b.iter(|| {
+        let _ = parser.parse(INPUT, QueryParserMode::Speculative).unwrap();
+    });
+}
+
+
+#[bench]
+#[cfg(feature = "avx-accel")]
+fn bench_pikkr_basic_1(b: &mut test::Bencher) {
     let mut pikkr = Pikkr::new(&["$._id.$oid"], ::std::usize::MAX).unwrap();
 
     b.iter(|| {
@@ -123,7 +181,7 @@ fn bench_pikkr(b: &mut test::Bencher) {
 
 #[bench]
 #[cfg(feature = "avx-accel")]
-fn bench_pikkr_2(b: &mut test::Bencher) {
+fn bench_pikkr_basic_2(b: &mut test::Bencher) {
     let mut pikkr = Pikkr::new(&["$._id.$oid", "$.partners"], ::std::usize::MAX).unwrap();
 
     b.iter(|| {
@@ -133,8 +191,42 @@ fn bench_pikkr_2(b: &mut test::Bencher) {
 
 #[bench]
 #[cfg(feature = "avx-accel")]
-fn bench_pikkr_3(b: &mut test::Bencher) {
+fn bench_pikkr_basic_3(b: &mut test::Bencher) {
     let mut pikkr = Pikkr::new(&["$.partners"], ::std::usize::MAX).unwrap();
+
+    b.iter(|| {
+        let _ = pikkr.parse(INPUT).unwrap();
+    });
+}
+
+
+#[bench]
+#[cfg(feature = "avx-accel")]
+fn bench_pikkr_speculative_1(b: &mut test::Bencher) {
+    let mut pikkr = Pikkr::new(&["$._id.$oid"], 1).unwrap();
+    let _ = pikkr.parse(INPUT).unwrap();
+
+    b.iter(|| {
+        let _ = pikkr.parse(INPUT).unwrap();
+    });
+}
+
+#[bench]
+#[cfg(feature = "avx-accel")]
+fn bench_pikkr_speculative_2(b: &mut test::Bencher) {
+    let mut pikkr = Pikkr::new(&["$._id.$oid", "$.partners"], 1).unwrap();
+    let _ = pikkr.parse(INPUT).unwrap();
+
+    b.iter(|| {
+        let _ = pikkr.parse(INPUT).unwrap();
+    });
+}
+
+#[bench]
+#[cfg(feature = "avx-accel")]
+fn bench_pikkr_speculative_3(b: &mut test::Bencher) {
+    let mut pikkr = Pikkr::new(&["$.partners"], 1).unwrap();
+    let _ = pikkr.parse(INPUT).unwrap();
 
     b.iter(|| {
         let _ = pikkr.parse(INPUT).unwrap();

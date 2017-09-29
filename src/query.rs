@@ -45,6 +45,11 @@ impl<'a> QueryNode<'a> {
     }
 
     #[allow(missing_docs)]
+    pub fn field(&self, field: &str) -> Option<&'a str> {
+        self.children.keys().find(|&f| f == &field).map(|f| *f)
+    }
+
+    #[allow(missing_docs)]
     pub fn num_children(&self) -> usize {
         self.children.len()
     }
