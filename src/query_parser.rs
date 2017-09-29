@@ -22,6 +22,7 @@ pub struct QueryParser<'a, B: Backend> {
     colon_positions: Vec<RefCell<Vec<usize>>>,
     pattern_trees: Vec<RefCell<PatternTree>>,
     save_patterns: bool,
+    allow_fallback: bool,
 }
 
 impl<'a, B: Backend> QueryParser<'a, B> {
@@ -38,12 +39,17 @@ impl<'a, B: Backend> QueryParser<'a, B> {
             query_tree,
             colon_positions: vec![RefCell::new(vec![]); num_nodes],
             pattern_trees,
-            save_patterns: true,
+            save_patterns: false,
+            allow_fallback: true,
         }
     }
 
     pub fn save_patterns(&mut self, v: bool) {
         self.save_patterns = v;
+    }
+
+    pub fn allow_fallback(&mut self, v: bool) {
+        self.allow_fallback = v;
     }
 
     pub fn parse<'s>(&self, record: &'s str, mode: QueryParserMode) -> Result<Vec<Option<&'s str>>> {
@@ -74,6 +80,9 @@ impl<'a, B: Backend> QueryParser<'a, B> {
                     &mut result[..],
                 )?;
                 if !success {
+                    if !self.allow_fallback {
+                        return Err(ErrorKind::FailedSpeculativeParse.into());
+                    }
                     self.parse_basic(
                         &index,
                         0,
@@ -257,6 +266,8 @@ mod tests {
         let index_builder = IndexBuilder::new(FallbackBackend::default(), query_tree.max_level());
         let mut parser = QueryParser::new(index_builder, query_tree);
         parser.save_patterns(true);
+        parser.allow_fallback(false);
+
         let _ = parser.parse(record, QueryParserMode::Basic).unwrap();
 
         let result = parser.parse(record, QueryParserMode::Speculative).unwrap();

@@ -15,5 +15,10 @@ error_chain! {
             description("invalid record")
             display("invalid record")
         }
+
+        FailedSpeculativeParse {
+            description("failed to parse in speculative parsing mode")
+            display("failed to parse in speculative parsing mode")
+        }
     }
 }
