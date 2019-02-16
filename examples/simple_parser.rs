@@ -1,9 +1,6 @@
-extern crate mison;
-
-use mison::index_builder::IndexBuilder;
-use mison::parser::Parser;
-
-use mison::index_builder::backend::FallbackBackend;
+use misosoup::index_builder::IndexBuilder;
+use misosoup::parser::Parser;
+use misosoup::index_builder::backend::FallbackBackend;
 
 fn main() {
     let level = 5;

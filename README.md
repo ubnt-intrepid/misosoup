@@ -1,21 +1,19 @@
-# `mison-rs` [![Build Status](https://travis-ci.org/ubnt-intrepid/mison-rs.svg?branch=master)](https://travis-ci.org/ubnt-intrepid/mison-rs)
+# `misosoup`
 
-A JSON parser for Rust, based on Mison.
+[![Build Status](https://travis-ci.org/ubnt-intrepid/mison-rs.svg?branch=master)](https://travis-ci.org/ubnt-intrepid/mison-rs)
 
-This project is not production ready.
+An experimental implementation of Mison JSON parser, written in Rust. 
+
+> This project is experimental and DO NOT use for production use. 
 
 ## Examples
 
 Simple parser:
 
 ```rust
-// src/main.rs
-
-extern crate mison;
-
-use mison::parser::Parser;
-use mison::index_builder::IndexBuilder;
-use mison::index_builder::backend::Avx2Backend;
+use misosoup::parser::Parser;
+use misosoup::index_builder::IndexBuilder;
+use misosoup::index_builder::backend::Avx2Backend;
 
 fn main() {
     let level = 5;
@@ -46,13 +44,10 @@ $ RUSTFLAGS="-C target-cpu=native" cargo +nightly run
 Query parser:
 
 ```rust
-extern crate mison;
-
-use mison::query::QueryTree;
-use mison::query_parser::QueryParser;
-use mison::index_builder::IndexBuilder;
-
-use mison::index_builder::backend::AvxBackend;
+use misosoup::query::QueryTree;
+use misosoup::query_parser::QueryParser;
+use misosoup::index_builder::IndexBuilder;
+use misosoup::index_builder::backend::AvxBackend;
 
 fn main() {
     let mut tree = QueryTree::default();
@@ -79,4 +74,10 @@ $ RUSTFLAGS="-C target-cpu=native" cargo +nightly run
 - [ ] Speculative parsing
 
 ## License
-MIT/Apache 2.0
+
+This project is licensed under either of
+
+* MIT license ([LICENSE-MIT](./LICENSE-MIT) or http://opensource.org/licenses/MIT)
+* Apache License, Version 2.0 ([LICENSE-APACHE](./LICENSE-APACHE) or http://www.apache.org/licenses/LICENSE-2.0)
+
+at your option.

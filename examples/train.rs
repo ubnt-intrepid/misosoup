@@ -1,16 +1,13 @@
 #[cfg(feature = "avx-accel")]
-extern crate mison;
-
-#[cfg(feature = "avx-accel")]
 mod imp {
     use std::env;
     use std::fs::File;
     use std::io::{BufRead, BufReader};
 
-    use mison::index_builder::backend::AvxBackend;
-    use mison::index_builder::IndexBuilder;
-    use mison::query::QueryTree;
-    use mison::query_parser::QueryParser;
+    use misosoup::index_builder::backend::AvxBackend;
+    use misosoup::index_builder::IndexBuilder;
+    use misosoup::query::QueryTree;
+    use misosoup::query_parser::{QueryParser, QueryParserMode};
 
     pub fn main() {
         let mut tree = QueryTree::default();
@@ -25,7 +22,7 @@ mod imp {
         let path = env::args().nth(1).unwrap();
         let f = BufReader::new(File::open(path).unwrap());
         for input in f.lines().filter_map(Result::ok) {
-            let _ = parser.parse(&input).unwrap();
+            let _ = parser.parse(&input, QueryParserMode::Basic).unwrap();
         }
         println!("{:#?}", parser);
     }

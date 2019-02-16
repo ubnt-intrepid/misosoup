@@ -1,21 +1,15 @@
 #![feature(test)]
-
-extern crate mison;
-extern crate pikkr;
-extern crate serde_json;
 extern crate test;
 
 #[cfg(feature = "avx-accel")]
-use mison::index_builder::backend::AvxBackend;
-use mison::index_builder::backend::FallbackBackend;
+use misosoup::index_builder::backend::AvxBackend;
+use misosoup::index_builder::backend::FallbackBackend;
 #[cfg(feature = "simd-accel")]
-use mison::index_builder::backend::Sse2Backend;
-use mison::index_builder::IndexBuilder;
-use mison::parser::Parser;
-use mison::query::QueryTree;
-use mison::query_parser::{QueryParser, QueryParserMode};
-
-use pikkr::Pikkr;
+use misosoup::index_builder::backend::Sse2Backend;
+use misosoup::index_builder::IndexBuilder;
+use misosoup::parser::Parser;
+use misosoup::query::QueryTree;
+use misosoup::query_parser::{QueryParser, QueryParserMode};
 
 const INPUT: &str = include_str!("temp.json");
 
@@ -164,80 +158,80 @@ fn bench_mison_avx_speculative_3(b: &mut test::Bencher) {
     });
 }
 
-#[bench]
-#[cfg(feature = "avx-accel")]
-fn bench_pikkr_basic_1(b: &mut test::Bencher) {
-    let mut pikkr = Pikkr::new(&["$._id.$oid"], ::std::usize::MAX).unwrap();
+// #[bench]
+// #[cfg(feature = "avx-accel")]
+// fn bench_pikkr_basic_1(b: &mut test::Bencher) {
+//     let mut pikkr = Pikkr::new(&["$._id.$oid"], ::std::usize::MAX).unwrap();
 
-    b.iter(|| {
-        let _ = pikkr.parse(INPUT).unwrap();
-    });
-}
+//     b.iter(|| {
+//         let _ = pikkr.parse(INPUT).unwrap();
+//     });
+// }
 
-#[bench]
-#[cfg(feature = "avx-accel")]
-fn bench_pikkr_basic_2(b: &mut test::Bencher) {
-    let mut pikkr = Pikkr::new(&["$._id.$oid", "$.partners"], ::std::usize::MAX).unwrap();
+// #[bench]
+// #[cfg(feature = "avx-accel")]
+// fn bench_pikkr_basic_2(b: &mut test::Bencher) {
+//     let mut pikkr = Pikkr::new(&["$._id.$oid", "$.partners"], ::std::usize::MAX).unwrap();
 
-    b.iter(|| {
-        let _ = pikkr.parse(INPUT).unwrap();
-    });
-}
+//     b.iter(|| {
+//         let _ = pikkr.parse(INPUT).unwrap();
+//     });
+// }
 
-#[bench]
-#[cfg(feature = "avx-accel")]
-fn bench_pikkr_basic_3(b: &mut test::Bencher) {
-    let mut pikkr = Pikkr::new(&["$.partners"], ::std::usize::MAX).unwrap();
+// #[bench]
+// #[cfg(feature = "avx-accel")]
+// fn bench_pikkr_basic_3(b: &mut test::Bencher) {
+//     let mut pikkr = Pikkr::new(&["$.partners"], ::std::usize::MAX).unwrap();
 
-    b.iter(|| {
-        let _ = pikkr.parse(INPUT).unwrap();
-    });
-}
+//     b.iter(|| {
+//         let _ = pikkr.parse(INPUT).unwrap();
+//     });
+// }
 
-#[bench]
-#[cfg(feature = "avx-accel")]
-fn bench_pikkr_speculative_1(b: &mut test::Bencher) {
-    let mut pikkr = Pikkr::new(&["$._id.$oid"], 1).unwrap();
-    let _ = pikkr.parse(INPUT).unwrap();
+// #[bench]
+// #[cfg(feature = "avx-accel")]
+// fn bench_pikkr_speculative_1(b: &mut test::Bencher) {
+//     let mut pikkr = Pikkr::new(&["$._id.$oid"], 1).unwrap();
+//     let _ = pikkr.parse(INPUT).unwrap();
 
-    b.iter(|| {
-        let _ = pikkr.parse(INPUT).unwrap();
-    });
-}
+//     b.iter(|| {
+//         let _ = pikkr.parse(INPUT).unwrap();
+//     });
+// }
 
-#[bench]
-#[cfg(feature = "avx-accel")]
-fn bench_pikkr_speculative_2(b: &mut test::Bencher) {
-    let mut pikkr = Pikkr::new(&["$._id.$oid", "$.partners"], 1).unwrap();
-    let _ = pikkr.parse(INPUT).unwrap();
+// #[bench]
+// #[cfg(feature = "avx-accel")]
+// fn bench_pikkr_speculative_2(b: &mut test::Bencher) {
+//     let mut pikkr = Pikkr::new(&["$._id.$oid", "$.partners"], 1).unwrap();
+//     let _ = pikkr.parse(INPUT).unwrap();
 
-    b.iter(|| {
-        let _ = pikkr.parse(INPUT).unwrap();
-    });
-}
+//     b.iter(|| {
+//         let _ = pikkr.parse(INPUT).unwrap();
+//     });
+// }
 
-#[bench]
-#[cfg(feature = "avx-accel")]
-fn bench_pikkr_speculative_3(b: &mut test::Bencher) {
-    let mut pikkr = Pikkr::new(&["$.partners"], 1).unwrap();
-    let _ = pikkr.parse(INPUT).unwrap();
+// #[bench]
+// #[cfg(feature = "avx-accel")]
+// fn bench_pikkr_speculative_3(b: &mut test::Bencher) {
+//     let mut pikkr = Pikkr::new(&["$.partners"], 1).unwrap();
+//     let _ = pikkr.parse(INPUT).unwrap();
 
-    b.iter(|| {
-        let _ = pikkr.parse(INPUT).unwrap();
-    });
-}
+//     b.iter(|| {
+//         let _ = pikkr.parse(INPUT).unwrap();
+//     });
+// }
 
-#[bench]
-#[cfg(feature = "avx-accel")]
-fn bench_pikkr_index_builder(b: &mut test::Bencher) {
-    use pikkr::index_builder::IndexBuilder;
-    let mut index_builder = IndexBuilder::new(3);
-    b.iter(|| {
-        index_builder
-            .build_structural_indices(INPUT.as_bytes())
-            .unwrap();
-    });
-}
+// #[bench]
+// #[cfg(feature = "avx-accel")]
+// fn bench_pikkr_index_builder(b: &mut test::Bencher) {
+//     use pikkr::index_builder::IndexBuilder;
+//     let mut index_builder = IndexBuilder::new(3);
+//     b.iter(|| {
+//         index_builder
+//             .build_structural_indices(INPUT.as_bytes())
+//             .unwrap();
+//     });
+// }
 
 #[bench]
 fn bench_mison_index_builder_fallback(b: &mut test::Bencher) {

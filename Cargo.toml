@@ -1,8 +1,10 @@
 [package]
-name = "mison"
-version = "0.1.0"
+name = "misosoup"
+version = "0.0.1"
 edition = "2018"
-authors = ["Yusuke Sasaki <y_sasaki@nuem.nagoya-u.ac.jp>"]
+authors = ["Yusuke Sasaki <yusuke.sasaki.nuem@gmail.com>"]
+description = "An experimental implementation of Mison JSON parser"
+publish = false
 
 [dependencies]
 fnv = "*"
@@ -18,7 +20,6 @@ maplit = "*"
 serde = "*"
 serde_derive = "*"
 serde_json = "*"
-pikkr = { git = "https://github.com/pikkr/pikkr.git" }
 
 [profile.release]
 debug = true
@@ -31,4 +32,4 @@ opt-level = 3
 [features]
 default = []
 simd-accel = ["packed_simd"]
-avx-accel = ["packed_simd", "pikkr/avx-accel"]
+avx-accel = ["packed_simd"]

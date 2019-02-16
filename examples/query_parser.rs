@@ -1,10 +1,7 @@
-extern crate mison;
-
-use mison::index_builder::IndexBuilder;
-use mison::query::QueryTree;
-use mison::query_parser::{QueryParser, QueryParserMode};
-
-use mison::index_builder::backend::FallbackBackend;
+use misosoup::index_builder::IndexBuilder;
+use misosoup::query::QueryTree;
+use misosoup::query_parser::{QueryParser, QueryParserMode};
+use misosoup::index_builder::backend::FallbackBackend;
 
 fn main() {
     let mut tree = QueryTree::default();

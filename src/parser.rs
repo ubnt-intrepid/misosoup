@@ -165,13 +165,13 @@ mod tests {
         let result = parser.parse(record).unwrap();
         assert_eq!(
             result,
-            object! {
+            crate::object! {
                 "f1" => true,
-                "f2" => object!{
+                "f2" => crate::object!{
                     "e2" => r#"\"foo\\"#,
-                    "e1" => object!{ "c1" => Value::Null, },
+                    "e1" => crate::object!{ "c1" => Value::Null, },
                 },
-                "f3" => array![
+                "f3" => crate::array![
                     true,
                     "10",
                     Value::Null,
@@ -198,13 +198,13 @@ mod tests {
         let result = parser.parse(record).unwrap();
         assert_eq!(
             result,
-            object!(
+            crate::object!(
                 "f1" => true,
-                "f2" => object!{
+                "f2" => crate::object!{
                     "e2" => r#"\"foo\\"#,
                     "e1" => Value::raw(r#"{ "c1": null }"#),
                 },
-                "f3" => array![
+                "f3" => crate::array![
                     true,
                     "10",
                     Value::Null,
