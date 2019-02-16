@@ -1,11 +1,5 @@
-use stdsimd::simd::{i8x32, u8x32};
 use super::{Backend, Bitmap};
-
-#[allow(improper_ctypes)]
-extern "C" {
-    #[link_name = "llvm.x86.avx2.pmovmskb"]
-    fn pmovmskb(a: i8x32) -> i32;
-}
+use packed_simd::u8x32;
 
 #[allow(missing_docs)]
 #[derive(Debug)]
@@ -38,8 +32,8 @@ impl Default for AvxBackend {
 impl Backend for AvxBackend {
     #[inline]
     fn create_full_bitmap(&self, s: &[u8], offset: usize) -> Bitmap {
-        let b0 = unsafe { u8x32::load_unchecked(s, offset) };
-        let b1 = unsafe { u8x32::load_unchecked(s, offset + 32) };
+        let b0 = u8x32::from_slice_unaligned(&s[offset..]);
+        let b1 = u8x32::from_slice_unaligned(&s[offset + 32..]);
         Bitmap {
             backslash: cmp2(self.backslash, b0, b1),
             quote: cmp2(self.quote, b0, b1),
@@ -56,7 +50,7 @@ impl Backend for AvxBackend {
     fn create_partial_bitmap(&self, s: &[u8], offset: usize) -> Bitmap {
         match s.len() - offset {
             x if x < 32 => {
-                let b0 = u8x32::load_partial(s, offset);
+                let b0 = u8x32::from_slice_unaligned_partial(&s[offset..]);
                 Bitmap {
                     backslash: cmp1(self.backslash, b0),
                     quote: cmp1(self.quote, b0),
@@ -69,7 +63,7 @@ impl Backend for AvxBackend {
                 }
             }
             32 => {
-                let b0 = unsafe { u8x32::load_unchecked(s, offset) };
+                let b0 = u8x32::from_slice_unaligned(&s[offset..]);
                 Bitmap {
                     backslash: cmp1(self.backslash, b0),
                     quote: cmp1(self.quote, b0),
@@ -82,8 +76,8 @@ impl Backend for AvxBackend {
                 }
             }
             _ => {
-                let b0 = unsafe { u8x32::load_unchecked(s, offset) };
-                let b1 = u8x32::load_partial(s, offset + 32);
+                let b0 = u8x32::from_slice_unaligned(&s[offset..]);
+                let b1 = u8x32::from_slice_unaligned_partial(&s[offset + 32..]);
                 Bitmap {
                     backslash: cmp2(self.backslash, b0, b1),
                     quote: cmp2(self.quote, b0, b1),
@@ -99,27 +93,25 @@ impl Backend for AvxBackend {
     }
 }
 
-
 trait U8x32Ext {
-    fn load_partial(s: &[u8], offset: usize) -> Self;
+    fn from_slice_unaligned_partial(s: &[u8]) -> Self;
 }
 
 impl U8x32Ext for u8x32 {
     #[inline]
-    fn load_partial(s: &[u8], offset: usize) -> u8x32 {
+    fn from_slice_unaligned_partial(s: &[u8]) -> u8x32 {
         let mut remains = [0u8; 32];
-        remains[0..(s.len() - offset)].copy_from_slice(&s[offset..]);
-        unsafe { u8x32::load_unchecked(&remains, 0) }
+        remains[0..s.len()].copy_from_slice(s);
+        u8x32::from_slice_unaligned(&remains[..])
     }
 }
 
-
 #[inline]
 fn cmp1(b: u8x32, b0: u8x32) -> u64 {
-    unsafe { pmovmskb(b.eq(b0)) as u32 as u64 }
+    b.eq(b0).bitmask() as u64
 }
 
 #[inline]
 fn cmp2(b: u8x32, b0: u8x32, b1: u8x32) -> u64 {
-    cmp1(b, b0) | (unsafe { pmovmskb(b.eq(b1)) as u32 as u64 }) << 32
+    cmp1(b, b0) | (b.eq(b1).bitmask() as u64) << 32
 }

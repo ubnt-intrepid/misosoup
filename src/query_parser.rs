@@ -1,13 +1,12 @@
 #![allow(missing_docs)]
 
+use crate::errors::{Error, ErrorKind, Result, ResultExt};
+use crate::index_builder::backend::Backend;
+use crate::index_builder::{IndexBuilder, StructuralIndex};
+use crate::pattern_tree::PatternTree;
+use crate::query::{QueryNode, QueryTree};
 use std::cell::RefCell;
 use std::collections::VecDeque;
-use errors::{Error, ErrorKind, Result, ResultExt};
-use index_builder::{IndexBuilder, StructuralIndex};
-use index_builder::backend::Backend;
-use query::{QueryNode, QueryTree};
-use pattern_tree::PatternTree;
-
 
 #[derive(Debug)]
 pub enum QueryParserMode {
@@ -52,10 +51,15 @@ impl<'a, B: Backend> QueryParser<'a, B> {
         self.allow_fallback = v;
     }
 
-    pub fn parse<'s>(&self, record: &'s str, mode: QueryParserMode) -> Result<Vec<Option<&'s str>>> {
+    pub fn parse<'s>(
+        &self,
+        record: &'s str,
+        mode: QueryParserMode,
+    ) -> Result<Vec<Option<&'s str>>> {
         let record = record.trim();
         if !record.starts_with("{") {
-            return Err(Error::from(ErrorKind::InvalidRecord)).chain_err(|| "QueryParser supports only object parsing");
+            return Err(Error::from(ErrorKind::InvalidRecord))
+                .chain_err(|| "QueryParser supports only object parsing");
         }
 
         let index = self.index_builder.build(record)?;
@@ -103,7 +107,7 @@ impl<'a, B: Backend> QueryParser<'a, B> {
         index: &StructuralIndex<'b, 's>,
         begin: usize,
         mut end: usize,
-        node: &QueryNode,
+        node: &QueryNode<'_>,
         results: &mut [Option<&'s str>],
     ) -> Result<()> {
         // TODO: avoid to calculate colon positions if it has already generated.
@@ -120,7 +124,8 @@ impl<'a, B: Backend> QueryParser<'a, B> {
         let mut pattern = VecDeque::with_capacity(node.num_children());
 
         for i in (0..cp.len()).rev() {
-            let (field, fsi) = index.find_object_field(if i == 0 { begin } else { cp[i - 1] }, cp[i])?;
+            let (field, fsi) =
+                index.find_object_field(if i == 0 { begin } else { cp[i - 1] }, cp[i])?;
             if let Some(ch) = node.find_child(field.as_raw_str()) {
                 let (vsi, vei) = index.find_object_value(cp[i] + 1, end, i == cp.len() - 1);
 
@@ -155,7 +160,7 @@ impl<'a, B: Backend> QueryParser<'a, B> {
         index: &StructuralIndex<'b, 's>,
         begin: usize,
         end: usize,
-        node: &QueryNode,
+        node: &QueryNode<'_>,
         results: &mut [Option<&'s str>],
     ) -> Result<bool> {
         if !index.colon_positions(
@@ -175,7 +180,8 @@ impl<'a, B: Backend> QueryParser<'a, B> {
             let mut success = false;
             for child in pattern_node.children() {
                 let i = child.position();
-                let (field, _) = index.find_object_field(if i == 0 { begin } else { cp[i - 1] }, cp[i])?;
+                let (field, _) =
+                    index.find_object_field(if i == 0 { begin } else { cp[i - 1] }, cp[i])?;
                 success = field.as_raw_str() == child.field();
                 if success {
                     let ch_node = node.find_child(field.as_raw_str()).unwrap();
@@ -209,11 +215,10 @@ impl<'a, B: Backend> QueryParser<'a, B> {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
-    use super::*;
     use super::super::index_builder::backend::FallbackBackend;
+    use super::*;
 
     #[test]
     fn basic_parsing() {

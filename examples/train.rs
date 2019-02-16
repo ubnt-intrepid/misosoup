@@ -4,13 +4,13 @@ extern crate mison;
 #[cfg(feature = "avx-accel")]
 mod imp {
     use std::env;
-    use std::io::{BufRead, BufReader};
     use std::fs::File;
+    use std::io::{BufRead, BufReader};
 
+    use mison::index_builder::backend::AvxBackend;
+    use mison::index_builder::IndexBuilder;
     use mison::query::QueryTree;
     use mison::query_parser::QueryParser;
-    use mison::index_builder::IndexBuilder;
-    use mison::index_builder::backend::AvxBackend;
 
     pub fn main() {
         let mut tree = QueryTree::default();

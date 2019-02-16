@@ -1,9 +1,8 @@
-use std::cell::Ref;
-use bit;
-use errors::{ErrorKind, Result};
-use value::EscapedStr;
 use super::builder::Inner;
-
+use crate::bit;
+use crate::errors::{ErrorKind, Result};
+use crate::value::EscapedStr;
+use std::cell::Ref;
 
 /// Structural index of a slice of bytes
 #[derive(Debug)]
@@ -14,7 +13,13 @@ pub struct StructuralIndex<'a, 's> {
 
 impl<'a, 's> StructuralIndex<'a, 's> {
     /// Calculate the position of colons at `level`, between from `begin` to `end`
-    pub fn colon_positions(&self, begin: usize, end: usize, level: usize, cp: &mut Vec<usize>) -> bool {
+    pub fn colon_positions(
+        &self,
+        begin: usize,
+        end: usize,
+        level: usize,
+        cp: &mut Vec<usize>,
+    ) -> bool {
         cp.clear();
         if level < self.inner.b_colon.len() {
             generate_positions(&self.inner.b_colon[level], begin, end, cp);
@@ -25,7 +30,13 @@ impl<'a, 's> StructuralIndex<'a, 's> {
     }
 
     /// Calculate the position of colons at `level`, between from `begin` to `end`
-    pub fn comma_positions(&self, begin: usize, end: usize, level: usize, cp: &mut Vec<usize>) -> bool {
+    pub fn comma_positions(
+        &self,
+        begin: usize,
+        end: usize,
+        level: usize,
+        cp: &mut Vec<usize>,
+    ) -> bool {
         cp.clear();
         if level < self.inner.b_comma.len() {
             generate_positions(&self.inner.b_comma[level], begin, end, cp);
@@ -61,7 +72,12 @@ impl<'a, 's> StructuralIndex<'a, 's> {
 
     #[allow(missing_docs)]
     #[inline]
-    pub fn find_object_value(&self, begin: usize, end: usize, is_last_field: bool) -> (usize, usize) {
+    pub fn find_object_value(
+        &self,
+        begin: usize,
+        end: usize,
+        is_last_field: bool,
+    ) -> (usize, usize) {
         find_object_value(
             self.record.as_bytes(),
             begin,
@@ -83,7 +99,6 @@ impl<'a, 's> StructuralIndex<'a, 's> {
         &self.record[begin..end]
     }
 }
-
 
 #[inline]
 fn generate_positions(bitmap: &[u64], begin: usize, end: usize, cp: &mut Vec<usize>) {

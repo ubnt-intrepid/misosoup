@@ -5,21 +5,19 @@ extern crate pikkr;
 extern crate serde_json;
 extern crate test;
 
-use mison::parser::Parser;
-use mison::query::QueryTree;
-use mison::query_parser::{QueryParser, QueryParserMode};
-use mison::index_builder::IndexBuilder;
+#[cfg(feature = "avx-accel")]
+use mison::index_builder::backend::AvxBackend;
 use mison::index_builder::backend::FallbackBackend;
 #[cfg(feature = "simd-accel")]
 use mison::index_builder::backend::Sse2Backend;
-#[cfg(feature = "avx-accel")]
-use mison::index_builder::backend::AvxBackend;
+use mison::index_builder::IndexBuilder;
+use mison::parser::Parser;
+use mison::query::QueryTree;
+use mison::query_parser::{QueryParser, QueryParserMode};
 
 use pikkr::Pikkr;
 
-
 const INPUT: &str = include_str!("temp.json");
-
 
 #[bench]
 fn bench_serde_json(b: &mut test::Bencher) {
@@ -71,7 +69,6 @@ fn bench_mison_avx_3(b: &mut test::Bencher) {
     });
 }
 
-
 #[bench]
 #[cfg(feature = "avx-accel")]
 fn bench_mison_avx_basic_1(b: &mut test::Bencher) {
@@ -111,7 +108,6 @@ fn bench_mison_avx_basic_3(b: &mut test::Bencher) {
         let _ = parser.parse(INPUT, QueryParserMode::Basic).unwrap();
     });
 }
-
 
 #[bench]
 #[cfg(feature = "avx-accel")]
@@ -168,7 +164,6 @@ fn bench_mison_avx_speculative_3(b: &mut test::Bencher) {
     });
 }
 
-
 #[bench]
 #[cfg(feature = "avx-accel")]
 fn bench_pikkr_basic_1(b: &mut test::Bencher) {
@@ -198,7 +193,6 @@ fn bench_pikkr_basic_3(b: &mut test::Bencher) {
         let _ = pikkr.parse(INPUT).unwrap();
     });
 }
-
 
 #[bench]
 #[cfg(feature = "avx-accel")]
@@ -232,7 +226,6 @@ fn bench_pikkr_speculative_3(b: &mut test::Bencher) {
         let _ = pikkr.parse(INPUT).unwrap();
     });
 }
-
 
 #[bench]
 #[cfg(feature = "avx-accel")]

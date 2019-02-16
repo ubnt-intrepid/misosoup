@@ -1,10 +1,9 @@
 #![macro_use]
 #![allow(missing_docs)]
 
+use crate::errors::{Error, ErrorKind, Result, ResultExt};
 use std::borrow::Cow;
 use std::fmt;
-use errors::{Error, ErrorKind, Result, ResultExt};
-
 
 #[derive(Clone, PartialEq, Eq, Hash)]
 pub struct EscapedStr<'a>(Cow<'a, str>);
@@ -17,7 +16,7 @@ impl<'a> EscapedStr<'a> {
 
 impl<'a> fmt::Debug for EscapedStr<'a> {
     #[inline]
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         fmt::Debug::fmt(&self.0, f)
     }
 }
@@ -43,7 +42,6 @@ impl<'a> From<Cow<'a, str>> for EscapedStr<'a> {
     }
 }
 
-
 pub type LinearMap<K, V> = Vec<(K, V)>;
 
 #[derive(Clone)]
@@ -59,14 +57,15 @@ pub enum Value<'a> {
 }
 
 impl<'a> fmt::Debug for Value<'a> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match *self {
             Value::Null => write!(f, "null"),
             Value::Boolean(b) => write!(f, "{}", b),
             Value::Number(n) => write!(f, "{}", n),
             Value::String(ref s) => fmt::Debug::fmt(s, f),
             Value::Array(ref arr) => fmt::Debug::fmt(arr, f),
-            Value::Object(ref obj) => f.debug_map()
+            Value::Object(ref obj) => f
+                .debug_map()
                 .entries(obj.iter().map(|&(ref k, ref v)| (k, v)))
                 .finish(),
             Value::Raw(ref s) => write!(f, "Raw({:?})", s),
@@ -109,8 +108,6 @@ impl<'a> From<Cow<'a, str>> for Value<'a> {
     }
 }
 
-
-
 #[derive(Debug)]
 pub enum ValueType<'a> {
     Atomic(Value<'a>),
@@ -131,11 +128,14 @@ pub fn parse<'a>(s: &'a str) -> Result<ValueType<'a>> {
         }
         s if s.starts_with("[") && s.ends_with("]") => Ok(ValueType::Array),
         s if s.starts_with("{") && s.ends_with("}") => Ok(ValueType::Object),
-        s => if let Ok(n) = s.parse::<f64>() {
-            Ok(ValueType::Atomic(Value::Number(n)))
-        } else {
-            Err(Error::from(ErrorKind::InvalidRecord)).chain_err(|| format!("Value::from_str({:?})", s))
-        },
+        s => {
+            if let Ok(n) = s.parse::<f64>() {
+                Ok(ValueType::Atomic(Value::Number(n)))
+            } else {
+                Err(Error::from(ErrorKind::InvalidRecord))
+                    .chain_err(|| format!("Value::from_str({:?})", s))
+            }
+        }
     }
 }
 

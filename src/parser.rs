@@ -1,11 +1,10 @@
 #![allow(missing_docs)]
 
+use crate::errors::Result;
+use crate::index_builder::backend::Backend;
+use crate::index_builder::{IndexBuilder, StructuralIndex};
+use crate::value::{self, Value, ValueType};
 use std::ptr;
-use index_builder::{IndexBuilder, StructuralIndex};
-use index_builder::backend::Backend;
-use errors::Result;
-use value::{self, Value, ValueType};
-
 
 #[derive(Debug)]
 pub struct Parser<B: Backend> {
@@ -23,6 +22,7 @@ impl<B: Backend> Parser<B> {
         self.parse_impl(&index, 0, record.len(), 0)
     }
 
+    #[allow(unsafe_code)]
     fn parse_array<'a, 's>(
         &self,
         index: &StructuralIndex<'a, 's>,
@@ -42,7 +42,8 @@ impl<B: Backend> Parser<B> {
         }
 
         for i in 0..cp.len() {
-            let (vsi, vei) = index.find_array_value(if i == 0 { begin + 1 } else { cp[i - 1] + 1 }, cp[i]);
+            let (vsi, vei) =
+                index.find_array_value(if i == 0 { begin + 1 } else { cp[i - 1] + 1 }, cp[i]);
             if i == 0 && vsi == vei {
                 unsafe {
                     // ensure not to call destructors of `uninitialized` elements.
@@ -65,6 +66,7 @@ impl<B: Backend> Parser<B> {
         Ok(Value::Array(result))
     }
 
+    #[allow(unsafe_code)]
     fn parse_object<'a, 's>(
         &self,
         index: &StructuralIndex<'a, 's>,
@@ -84,13 +86,14 @@ impl<B: Backend> Parser<B> {
 
         let mut err = Ok(());
         for i in (0..cp.len()).rev() {
-            let (field, fsi) = match index.find_object_field(if i == 0 { begin } else { cp[i - 1] }, cp[i]) {
-                Ok(v) => v,
-                Err(e) => {
-                    err = Err((i, e));
-                    break;
-                }
-            };
+            let (field, fsi) =
+                match index.find_object_field(if i == 0 { begin } else { cp[i - 1] }, cp[i]) {
+                    Ok(v) => v,
+                    Err(e) => {
+                        err = Err((i, e));
+                        break;
+                    }
+                };
 
             let (vsi, vei) = index.find_object_value(cp[i] + 1, end, i == cp.len() - 1);
             let value = match self.parse_impl(index, vsi, vei, level + 1) {
@@ -139,11 +142,10 @@ impl<B: Backend> Parser<B> {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
-    use super::*;
     use super::super::index_builder::backend::FallbackBackend;
+    use super::*;
 
     #[test]
     fn basic_parsing() {
@@ -163,7 +165,7 @@ mod tests {
         let result = parser.parse(record).unwrap();
         assert_eq!(
             result,
-            object!{
+            object! {
                 "f1" => true,
                 "f2" => object!{
                     "e2" => r#"\"foo\\"#,

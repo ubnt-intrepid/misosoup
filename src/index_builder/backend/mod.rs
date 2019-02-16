@@ -1,10 +1,10 @@
 //! Definition of backends to create character bitmaps
 
-#[cfg(feature = "simd-accel")]
-mod sse2;
 #[cfg(all(feature = "avx-accel", target_arch = "x86_64"))]
 mod avx;
 mod fallback;
+#[cfg(feature = "simd-accel")]
+mod sse2;
 
 pub use self::fallback::FallbackBackend;
 
@@ -13,7 +13,6 @@ pub use self::sse2::Sse2Backend;
 
 #[cfg(all(feature = "avx-accel", target_arch = "x86_64"))]
 pub use self::avx::AvxBackend;
-
 
 /// Structural character bitmaps
 #[allow(missing_docs)]

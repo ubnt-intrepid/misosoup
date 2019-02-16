@@ -2,7 +2,6 @@
 
 //! Useful bit operators
 
-
 /// Remove the rightmost 1 in `x`
 /// ```ignore
 /// assert!( R(0b_1110_1000) == 0b_1110_0000 );

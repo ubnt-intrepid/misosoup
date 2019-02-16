@@ -47,7 +47,6 @@ impl PatternNode {
     }
 }
 
-
 #[derive(Debug, Default)]
 pub struct PatternTree {
     root: PatternNode,
@@ -78,7 +77,8 @@ impl PatternTree {
         cur.weight += 1;
         for (field, pos) in pattern {
             let cur1 = cur;
-            cur = match cur1.children
+            cur = match cur1
+                .children
                 .iter()
                 .position(|ch| ch.field == field && ch.pos == pos)
             {
@@ -130,54 +130,46 @@ mod tests {
             field: "$".to_owned(),
             pos: !0,
             weight: 3,
-            children: vec![
-                PatternNode {
-                    field: "foo".to_owned(),
-                    pos: 0,
-                    weight: 3,
-                    children: vec![
-                        PatternNode {
-                            field: "bar".to_owned(),
-                            pos: 1,
-                            weight: 1,
-                            children: vec![
-                                PatternNode {
-                                    field: "baz".to_owned(),
-                                    pos: 2,
-                                    weight: 1,
-                                    children: vec![],
-                                },
-                            ],
-                        },
-                        PatternNode {
+            children: vec![PatternNode {
+                field: "foo".to_owned(),
+                pos: 0,
+                weight: 3,
+                children: vec![
+                    PatternNode {
+                        field: "bar".to_owned(),
+                        pos: 1,
+                        weight: 1,
+                        children: vec![PatternNode {
                             field: "baz".to_owned(),
-                            pos: 1,
-                            weight: 1,
-                            children: vec![
-                                PatternNode {
-                                    field: "bar".to_owned(),
-                                    pos: 3,
-                                    weight: 1,
-                                    children: vec![],
-                                },
-                            ],
-                        },
-                        PatternNode {
-                            field: "bar".to_owned(),
                             pos: 2,
                             weight: 1,
-                            children: vec![
-                                PatternNode {
-                                    field: "baz".to_owned(),
-                                    pos: 3,
-                                    weight: 1,
-                                    children: vec![],
-                                },
-                            ],
-                        },
-                    ],
-                },
-            ],
+                            children: vec![],
+                        }],
+                    },
+                    PatternNode {
+                        field: "baz".to_owned(),
+                        pos: 1,
+                        weight: 1,
+                        children: vec![PatternNode {
+                            field: "bar".to_owned(),
+                            pos: 3,
+                            weight: 1,
+                            children: vec![],
+                        }],
+                    },
+                    PatternNode {
+                        field: "bar".to_owned(),
+                        pos: 2,
+                        weight: 1,
+                        children: vec![PatternNode {
+                            field: "baz".to_owned(),
+                            pos: 3,
+                            weight: 1,
+                            children: vec![],
+                        }],
+                    },
+                ],
+            }],
         };
         assert_eq!(tree.root, expected);
     }

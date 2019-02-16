@@ -1,7 +1,5 @@
-use stdsimd::simd::u8x16;
-use stdsimd::vendor::_mm_movemask_epi8;
 use super::{Backend, Bitmap};
-
+use packed_simd::u8x16;
 
 #[allow(missing_docs)]
 #[derive(Debug)]
@@ -33,10 +31,10 @@ impl Default for Sse2Backend {
 
 impl Backend for Sse2Backend {
     fn create_full_bitmap(&self, s: &[u8], offset: usize) -> Bitmap {
-        let b0 = unsafe { u8x16::load_unchecked(s, offset) };
-        let b1 = unsafe { u8x16::load_unchecked(s, offset + 16) };
-        let b2 = unsafe { u8x16::load_unchecked(s, offset + 32) };
-        let b3 = unsafe { u8x16::load_unchecked(s, offset + 48) };
+        let b0 = u8x16::from_slice_unaligned(&s[offset..]);
+        let b1 = u8x16::from_slice_unaligned(&s[offset + 16..]);
+        let b2 = u8x16::from_slice_unaligned(&s[offset + 32..]);
+        let b3 = u8x16::from_slice_unaligned(&s[offset + 48..]);
         Bitmap {
             backslash: cmp4(self.backslash, b0, b1, b2, b3),
             quote: cmp4(self.quote, b0, b1, b2, b3),
@@ -52,7 +50,7 @@ impl Backend for Sse2Backend {
     fn create_partial_bitmap(&self, s: &[u8], offset: usize) -> Bitmap {
         match s.len() - offset {
             x if x < 16 => {
-                let b0 = u8x16::load_partial(s, offset);
+                let b0 = u8x16::from_slice_unaligned_partial(&s[offset..]);
                 Bitmap {
                     backslash: cmp1(self.backslash, b0),
                     quote: cmp1(self.quote, b0),
@@ -65,7 +63,7 @@ impl Backend for Sse2Backend {
                 }
             }
             16 => {
-                let b0 = unsafe { u8x16::load_unchecked(s, offset) };
+                let b0 = u8x16::from_slice_unaligned(&s[offset..]);
                 Bitmap {
                     backslash: cmp1(self.backslash, b0),
                     quote: cmp1(self.quote, b0),
@@ -78,8 +76,8 @@ impl Backend for Sse2Backend {
                 }
             }
             x if x < 32 => {
-                let b0 = unsafe { u8x16::load_unchecked(s, offset) };
-                let b1 = u8x16::load_partial(s, offset + 16);
+                let b0 = u8x16::from_slice_unaligned(&s[offset..]);
+                let b1 = u8x16::from_slice_unaligned_partial(&s[offset + 16..]);
                 Bitmap {
                     backslash: cmp2(self.backslash, b0, b1),
                     quote: cmp2(self.quote, b0, b1),
@@ -92,8 +90,8 @@ impl Backend for Sse2Backend {
                 }
             }
             32 => {
-                let b0 = unsafe { u8x16::load_unchecked(s, offset) };
-                let b1 = unsafe { u8x16::load_unchecked(s, offset + 16) };
+                let b0 = u8x16::from_slice_unaligned(&s[offset..]);
+                let b1 = u8x16::from_slice_unaligned(&s[offset + 16..]);
                 Bitmap {
                     backslash: cmp2(self.backslash, b0, b1),
                     quote: cmp2(self.quote, b0, b1),
@@ -106,9 +104,9 @@ impl Backend for Sse2Backend {
                 }
             }
             x if x < 48 => {
-                let b0 = unsafe { u8x16::load_unchecked(s, offset) };
-                let b1 = unsafe { u8x16::load_unchecked(s, offset + 16) };
-                let b2 = u8x16::load_partial(s, offset + 32);
+                let b0 = u8x16::from_slice_unaligned(&s[offset..]);
+                let b1 = u8x16::from_slice_unaligned(&s[offset + 16..]);
+                let b2 = u8x16::from_slice_unaligned_partial(&s[offset + 32..]);
                 Bitmap {
                     backslash: cmp3(self.backslash, b0, b1, b2),
                     quote: cmp3(self.quote, b0, b1, b2),
@@ -121,9 +119,9 @@ impl Backend for Sse2Backend {
                 }
             }
             48 => {
-                let b0 = unsafe { u8x16::load_unchecked(s, offset) };
-                let b1 = unsafe { u8x16::load_unchecked(s, offset + 16) };
-                let b2 = unsafe { u8x16::load_unchecked(s, offset + 32) };
+                let b0 = u8x16::from_slice_unaligned(&s[offset..]);
+                let b1 = u8x16::from_slice_unaligned(&s[offset + 16..]);
+                let b2 = u8x16::from_slice_unaligned(&s[offset + 32..]);
                 Bitmap {
                     backslash: cmp3(self.backslash, b0, b1, b2),
                     quote: cmp3(self.quote, b0, b1, b2),
@@ -136,10 +134,10 @@ impl Backend for Sse2Backend {
                 }
             }
             _ => {
-                let b0 = unsafe { u8x16::load_unchecked(s, offset) };
-                let b1 = unsafe { u8x16::load_unchecked(s, offset + 16) };
-                let b2 = unsafe { u8x16::load_unchecked(s, offset + 32) };
-                let b3 = u8x16::load_partial(s, offset + 48);
+                let b0 = u8x16::from_slice_unaligned(&s[offset..]);
+                let b1 = u8x16::from_slice_unaligned(&s[offset + 16..]);
+                let b2 = u8x16::from_slice_unaligned(&s[offset + 32..]);
+                let b3 = u8x16::from_slice_unaligned_partial(&s[offset + 48..]);
                 Bitmap {
                     backslash: cmp4(self.backslash, b0, b1, b2, b3),
                     quote: cmp4(self.quote, b0, b1, b2, b3),
@@ -155,37 +153,35 @@ impl Backend for Sse2Backend {
     }
 }
 
-
 trait U8x16Ext {
-    fn load_partial(s: &[u8], offset: usize) -> Self;
+    fn from_slice_unaligned_partial(s: &[u8]) -> Self;
 }
 
 impl U8x16Ext for u8x16 {
     #[inline]
-    fn load_partial(s: &[u8], offset: usize) -> u8x16 {
+    fn from_slice_unaligned_partial(s: &[u8]) -> u8x16 {
         let mut remains = [0u8; 16];
-        remains[0..(s.len() - offset)].copy_from_slice(&s[offset..]);
-        unsafe { u8x16::load_unchecked(&remains, 0) }
+        remains[0..s.len()].copy_from_slice(s);
+        u8x16::from_slice_unaligned(&remains[..])
     }
 }
 
-
 #[inline]
 fn cmp1(b: u8x16, b0: u8x16) -> u64 {
-    _mm_movemask_epi8(b.eq(b0)) as u32 as u64
+    b.eq(b0).bitmask() as u64
 }
 
 #[inline]
 fn cmp2(b: u8x16, b0: u8x16, b1: u8x16) -> u64 {
-    cmp1(b, b0) | (_mm_movemask_epi8(b.eq(b1)) as u32 as u64) << 16
+    cmp1(b, b0) | (b.eq(b1).bitmask() as u64) << 16
 }
 
 #[inline]
 fn cmp3(b: u8x16, b0: u8x16, b1: u8x16, b2: u8x16) -> u64 {
-    cmp2(b, b0, b1) | (_mm_movemask_epi8(b.eq(b2)) as u32 as u64) << 32
+    cmp2(b, b0, b1) | (b.eq(b2).bitmask() as u64) << 32
 }
 
 #[inline]
 fn cmp4(b: u8x16, b0: u8x16, b1: u8x16, b2: u8x16, b3: u8x16) -> u64 {
-    cmp3(b, b0, b1, b2) | (_mm_movemask_epi8(b.eq(b3)) as u32 as u64) << 48
+    cmp3(b, b0, b1, b2) | (b.eq(b3).bitmask() as u64) << 48
 }

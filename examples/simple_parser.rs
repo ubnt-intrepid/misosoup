@@ -1,7 +1,7 @@
 extern crate mison;
 
-use mison::parser::Parser;
 use mison::index_builder::IndexBuilder;
+use mison::parser::Parser;
 
 use mison::index_builder::backend::FallbackBackend;
 

@@ -1,11 +1,10 @@
-use std::cell::RefCell;
-use bit;
+use crate::bit;
+use crate::errors::{Error, ErrorKind, Result, ResultExt};
 use num::Integer;
-use errors::{Error, ErrorKind, Result, ResultExt};
+use std::cell::RefCell;
 
 use super::backend::{Backend, Bitmap};
 use super::index::StructuralIndex;
-
 
 /// A index builder
 #[derive(Debug, Default)]
@@ -66,7 +65,6 @@ impl<B: Backend> IndexBuilder<B> {
         })
     }
 }
-
 
 #[derive(Debug, Default)]
 pub(crate) struct Inner {
@@ -186,11 +184,13 @@ impl Inner {
                 }
 
                 if m_rightbit != 0 {
-                    let (j, mlb, t) = s.pop()
+                    let (j, mlb, t) = s
+                        .pop()
                         .ok_or_else(|| Error::from(ErrorKind::InvalidRecord))
                         .chain_err(|| "s.pop()")?;
                     if t != (m_rightbit & b.right_brace != 0) {
-                        return Err(Error::from(ErrorKind::InvalidRecord)).chain_err(|| "invalid bracket/brace");
+                        return Err(Error::from(ErrorKind::InvalidRecord))
+                            .chain_err(|| "invalid bracket/brace");
                     }
                     m_leftbit = mlb;
 
@@ -231,7 +231,6 @@ impl Inner {
     }
 }
 
-
 /// Compute the length of the consecutive ones in the backslash bitmap starting at `pos`
 #[inline]
 fn consecutive_ones(b: &[Bitmap], pos: u32) -> u32 {
@@ -250,11 +249,10 @@ fn consecutive_ones(b: &[Bitmap], pos: u32) -> u32 {
     ones
 }
 
-
 #[cfg(test)]
 mod tests {
-    use super::IndexBuilder;
     use super::super::backend::{Bitmap, FallbackBackend};
+    use super::IndexBuilder;
 
     #[test]
     fn test_structural_character_bitmaps() {
@@ -269,113 +267,89 @@ mod tests {
             TestCase {
                 input: "{}",
                 level: 1,
-                bitmaps: vec![
-                    Bitmap {
-                        backslash: 0,
-                        quote: 0,
-                        colon: 0,
-                        comma: 0,
-                        left_brace: 0b0000_0001,
-                        right_brace: 0b0000_0010,
-                        left_bracket: 0,
-                        right_bracket: 0,
-                    },
-                ],
+                bitmaps: vec![Bitmap {
+                    backslash: 0,
+                    quote: 0,
+                    colon: 0,
+                    comma: 0,
+                    left_brace: 0b0000_0001,
+                    right_brace: 0b0000_0010,
+                    left_bracket: 0,
+                    right_bracket: 0,
+                }],
                 b_colon: vec![vec![0]],
                 b_comma: vec![vec![0]],
             },
             TestCase {
                 input: r#"{"x\"y\\":10}"#,
                 level: 1,
-                bitmaps: vec![
-                    Bitmap {
-                        backslash: 0b_0000_0000_1100_1000,
-                        quote: 0b_0000_0001_0000_0010,
-                        colon: 0b_0000_0010_0000_0000,
-                        comma: 0,
-                        left_brace: 0b_0000_0000_0000_0001,
-                        right_brace: 0b_0001_0000_0000_0000,
-                        left_bracket: 0,
-                        right_bracket: 0,
-                    },
-                ],
+                bitmaps: vec![Bitmap {
+                    backslash: 0b_0000_0000_1100_1000,
+                    quote: 0b_0000_0001_0000_0010,
+                    colon: 0b_0000_0010_0000_0000,
+                    comma: 0,
+                    left_brace: 0b_0000_0000_0000_0001,
+                    right_brace: 0b_0001_0000_0000_0000,
+                    left_bracket: 0,
+                    right_bracket: 0,
+                }],
                 b_colon: vec![vec![0b_0000_0010_0000_0000]],
                 b_comma: vec![vec![0b_0000_0000_0000_0000]],
             },
             TestCase {
                 input: r#"{ "f1":"a", "f2":{ "e1": true, "e2": "::a" }, "f3":"\"foo\\" }"#,
                 level: 2,
-                bitmaps: vec![
-                    Bitmap {
-                        backslash: 0b_0000_0110_0001_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000,
-                        quote: 0b_0000_1000_0000_1010_0100_0010_0010_0100_1000_0000_0100_1000_1001_0010_1010_0100,
-                        colon: 0b_0000_0000_0000_0100_0000_0000_0000_1000_0000_0000_1000_0001_0000_0000_0100_0000,
-                        comma: 0b_0000_0000_0000_0000_0001_0000_0000_0000_0010_0000_0000_0000_0000_0100_0000_0000,
-                        left_brace: 0b_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0010_0000_0000_0000_0001,
-                        right_brace: 0b_0010_0000_0000_0000_0000_1000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000,
-                        left_bracket: 0,
-                        right_bracket: 0,
-                    },
-                ],
+                bitmaps: vec![Bitmap {
+                    backslash: 0b_0000_0110_0001_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000,
+                    quote: 0b_0000_1000_0000_1010_0100_0010_0010_0100_1000_0000_0100_1000_1001_0010_1010_0100,
+                    colon: 0b_0000_0000_0000_0100_0000_0000_0000_1000_0000_0000_1000_0001_0000_0000_0100_0000,
+                    comma: 0b_0000_0000_0000_0000_0001_0000_0000_0000_0010_0000_0000_0000_0000_0100_0000_0000,
+                    left_brace: 0b_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0010_0000_0000_0000_0001,
+                    right_brace: 0b_0010_0000_0000_0000_0000_1000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000,
+                    left_bracket: 0,
+                    right_bracket: 0,
+                }],
                 b_colon: vec![
-                    vec![
-                        0b_0000_0000_0000_0100_0000_0000_0000_0000_0000_0000_0000_0001_0000_0000_0100_0000,
-                    ],
-                    vec![
-                        0b_0000_0000_0000_0100_0000_0000_0000_1000_0000_0000_1000_0001_0000_0000_0100_0000,
-                    ],
+                    vec![0b_0000_0000_0000_0100_0000_0000_0000_0000_0000_0000_0000_0001_0000_0000_0100_0000],
+                    vec![0b_0000_0000_0000_0100_0000_0000_0000_1000_0000_0000_1000_0001_0000_0000_0100_0000],
                 ],
                 b_comma: vec![
-                    vec![
-                        0b_0000_0000_0000_0000_0001_0000_0000_0000_0000_0000_0000_0000_0000_0100_0000_0000,
-                    ],
-                    vec![
-                        0b_0000_0000_0000_0000_0001_0000_0000_0000_0010_0000_0000_0000_0000_0100_0000_0000,
-                    ],
+                    vec![0b_0000_0000_0000_0000_0001_0000_0000_0000_0000_0000_0000_0000_0000_0100_0000_0000],
+                    vec![0b_0000_0000_0000_0000_0001_0000_0000_0000_0010_0000_0000_0000_0000_0100_0000_0000],
                 ],
             },
             TestCase {
                 input: r#"{ "f1": { "e1": { "d1": true } } }"#,
                 level: 3,
-                bitmaps: vec![
-                    Bitmap {
-                        backslash: 0,
-                        quote: 2368548,
-                        colon: 4210752,
-                        comma: 0,
-                        left_brace: 65793,
-                        right_brace: 11274289152,
-                        left_bracket: 0,
-                        right_bracket: 0,
-                    },
-                ],
+                bitmaps: vec![Bitmap {
+                    backslash: 0,
+                    quote: 2368548,
+                    colon: 4210752,
+                    comma: 0,
+                    left_brace: 65793,
+                    right_brace: 11274289152,
+                    left_bracket: 0,
+                    right_bracket: 0,
+                }],
                 b_colon: vec![vec![64], vec![16448], vec![4210752]],
                 b_comma: vec![vec![0], vec![0], vec![0]],
             },
             TestCase {
                 input: r#"{ "a": [0, 1, 2] }"#,
                 level: 2,
-                bitmaps: vec![
-                    Bitmap {
-                        backslash: 0,
-                        quote: 20,
-                        colon: 32,
-                        comma: 4608,
-                        left_brace: 1,
-                        right_brace: 131072,
-                        left_bracket: 128,
-                        right_bracket: 32768,
-                    },
-                ],
+                bitmaps: vec![Bitmap {
+                    backslash: 0,
+                    quote: 20,
+                    colon: 32,
+                    comma: 4608,
+                    left_brace: 1,
+                    right_brace: 131072,
+                    left_bracket: 128,
+                    right_bracket: 32768,
+                }],
                 //    }_ ]2_, 1_,0 [_:" a"_{
-                b_colon: vec![
-                    vec![0b_0000_0000_0000_0010_0000],
-                    vec![0b_0000_0000_0000_0010_0000],
-                ],
-                b_comma: vec![
-                    vec![0b_0000_0000_0000_0000_0000],
-                    vec![0b_0000_0001_0010_0000_0000],
-                ],
+                b_colon: vec![vec![0b_0000_0000_0000_0010_0000], vec![0b_0000_0000_0000_0010_0000]],
+                b_comma: vec![vec![0b_0000_0000_0000_0000_0000], vec![0b_0000_0001_0010_0000_0000]],
             },
         ];
 

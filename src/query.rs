@@ -1,8 +1,8 @@
 //! Definition of pattern tree and query parsing
 
-use std::cmp;
+use crate::errors::{ErrorKind, Result};
 use fnv::FnvHashMap;
-use errors::{ErrorKind, Result};
+use std::cmp;
 
 /// Child node in pattern tree
 #[derive(Debug, Default)]
@@ -40,7 +40,7 @@ impl<'a> QueryNode<'a> {
     }
 
     #[allow(missing_docs)]
-    pub fn find_child(&self, field: &str) -> Option<&QueryNode> {
+    pub fn find_child(&self, field: &str) -> Option<&QueryNode<'_>> {
         self.children.get(field)
     }
 
@@ -132,11 +132,10 @@ impl<'a> QueryTree<'a> {
     }
 
     #[allow(missing_docs)]
-    pub fn as_node(&self) -> &QueryNode {
+    pub fn as_node(&self) -> &QueryNode<'_> {
         &self.root
     }
 }
-
 
 #[cfg(test)]
 mod tests {
@@ -180,7 +179,7 @@ mod tests {
                         node_id: 0,
                         query_id: None,
                         level: 0,
-                        children: hashmap!{
+                        children: hashmap! {
                             "foo" => QueryNode {
                                 node_id: 1,
                                 query_id: Some(0),
@@ -201,7 +200,7 @@ mod tests {
                         node_id: 0,
                         query_id: None,
                         level: 0,
-                        children: hashmap!{
+                        children: hashmap! {
                             "foo" => QueryNode {
                                 node_id: 1,
                                 query_id: None,
@@ -229,7 +228,7 @@ mod tests {
                         node_id: 0,
                         query_id: None,
                         level: 0,
-                        children: hashmap!{
+                        children: hashmap! {
                             "f1" => QueryNode {
                                 node_id: 1,
                                 query_id: None,

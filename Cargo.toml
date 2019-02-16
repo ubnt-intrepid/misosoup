@@ -1,6 +1,7 @@
 [package]
 name = "mison"
 version = "0.1.0"
+edition = "2018"
 authors = ["Yusuke Sasaki <y_sasaki@nuem.nagoya-u.ac.jp>"]
 
 [dependencies]
@@ -10,7 +11,7 @@ error-chain = "*"
 itertools = "*"
 linear-map = "*"
 smallvec = "*"
-stdsimd = { version = "*", optional = true }
+packed_simd = { version = "*", optional = true }
 
 [dev-dependencies]
 maplit = "*"
@@ -29,5 +30,5 @@ opt-level = 3
 
 [features]
 default = []
-simd-accel = ["stdsimd"]
-avx-accel = ["stdsimd", "pikkr/avx-accel"]
+simd-accel = ["packed_simd"]
+avx-accel = ["packed_simd", "pikkr/avx-accel"]

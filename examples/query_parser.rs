@@ -1,8 +1,8 @@
 extern crate mison;
 
+use mison::index_builder::IndexBuilder;
 use mison::query::QueryTree;
 use mison::query_parser::{QueryParser, QueryParserMode};
-use mison::index_builder::IndexBuilder;
 
 use mison::index_builder::backend::FallbackBackend;
 
